@@ -1,0 +1,32 @@
+
+
+
+ARM Macro Assembler    Page 1 KL46Z Bare Metal Assembly Startup
+
+
+    1 00000000                 TTL              KL46Z Bare Metal Assembly Startup
+    2 00000000         ;****************************************************************
+    3 00000000         ;* Flash configuration image for area at 0x400-0x40F(+)
+    4 00000000         ;* SystemInit subroutine (++)
+    5 00000000         ;* SetClock48MHz subroutine (+++)
+    6 00000000         ;+:Following Freescale startup_MKL46Z4.s
+    7 00000000         ;     CMSIS Cortex-M0plus Core Device Startup File for the MKL46Z4
+    8 00000000         ;     v1.4, 11/22/2012
+    9 00000000         ;++:Following [1].1.1.4.2 Startup routines and [2]
+   10 00000000         ;+++:Following [1].4.1 Clocking
+   11 00000000         ;[1] Freescale Semiconductor, <B>Kinetis L Peripheral Module Quick
+   12 00000000         ;    Reference</B>, KLQRUG, Rev. 0, 9/2012.
+   13 00000000         ;[2] ARM, <B>Application Note 48 Scatter Loading</B>, ARM DAI 0048A,
+   14 00000000         ;    Jan. 1998
+   15 00000000         ;Name:  R. W. Melton
+   16 00000000         ;Date:  April 17, 2015
+   17 00000000         ;Class:  CMPE 250
+   18 00000000         ;Section:  All sections
+   19 00000000         ;****************************************************************
+   20 00000000         ;Include files
+   21 00000000         ;  MKL46Z4.s
+   22 00000000                 GET              MKL46Z4.s
+Command Line: --debug --length=49 --width=120 --diag_suppress=9931 --cpu=Cortex-M0+ --apcs=interwork --depend=.\objects\
+start.d -o.\objects\start.o -ID:\Assembly\Exerciser12\RTE -IC:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include -IC:\Keil_
+v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include --predefine="__UVISION_VERSION SETA 515" --predefine="_RTE_ SETA 
+1" --predefine="MKL46Z256xxx4 SETA 1" --list=.\listings\start.lst Start.s

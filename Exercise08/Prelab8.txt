@@ -1,0 +1,105 @@
+;This subroutine creates a null terminated string in memory starting at
+;the address in R1 by copying the character from a null terminated source
+;string starting at the address in R0
+;Input Parameters
+;	R0 starting address of source string
+;	R1 starting address of null terminated string to copy into
+;Output
+;	None
+;Modefied Registers
+;	PSR
+Copy String
+				PUSH	{R0-R7,LR}
+				MOVS	R2,#0			;Intialize counter/offset
+				MOVS	R4,#0x00		;store null
+CSCond			
+				LDRB	R3,[R0,R2]		;get char from string
+				CMP		R3,R4			;compare to null
+				BEQ		CSEnd			
+CSLoop		
+				STRB	R3,[R1,R2]		;store char in new string
+				ADDS	R2,R2,#1		;Increment counter/offset
+				B		CSCond
+CSEnd			
+				POP		{R0-R7,PC}
+				BX		LR
+
+;This subroutine modefies the null-terminated string in memory staring at the
+;address in R0 to replace all space characters as underscores, all upper-case 
+;characters with their lower case equivalents, and every number with a pound sign 
+;Input Parameters
+;	R0 starting address in memory of nulll terminated string
+;Output Paramters
+;	None
+;Modefied Registers
+;	PSR
+ModifyString
+				PUSH	{R0-R7,LR}
+				LDRB	R1,[R0,#0]		;Get character at begining of string, store in R1
+MSCond			
+				MOVS	R3,#0x00		;Store null in R3
+				CMP		R1,R3			;Compare char to null
+				BEQ		MSEnd			;End if the end of string is reached
+				CMP		R1,#0x20		;Compare char to space
+				BEQ		CharIsSpace
+				CMP		R1,#0x41		;Compare to upercase A
+				BHS		CharIsUppercase	
+				CMP		R1,#0x39		;Compare to ascii 9
+				BLS		CharIsNumber
+				STRB	R1,[R0,#0]		;If none of these then store char at pointer
+				ADDS	R1,R1,#1		;Increment pointer
+				B		MSCond
+CharIsSpace
+				MOVS	R1,#0x5F		;Move underscore into R1
+				STRB	R1,[R0,#0]		;Store underscore at pointer 
+				ADDS	R1,R1,#1		;Increment pointer
+				B		MSCond
+CharIsUppercase
+				ADDS	R1,R1,#20		;Turn to lower case
+				STRB	R1,[R0,#0]		;Store lower case char at pointer 
+				ADDS	R1,R1,#1		;Increment pointer
+				B		MSCond
+CharIsNumber
+				MOVS	R1,#0x23		;Move pound sign into R1
+				STRB	R1,[R0,#0]		;Store underscore at pointer 
+				ADDS	R1,R1,#1		;Increment pointer
+				B		MSCond
+MSEnd
+				POP		{R0-R7,PC}
+				BX		LR
+;This subrouting reverses the characters of a null-terminated string in memory
+;starting at the address in R0
+;Input parameters
+;	R0 starting address in memory of null terrminated string
+;Output Parameters
+;	None
+;Modefied Registers
+;	None
+Reverse String
+				PUSH	{R0-R7,LR}
+				MOVS	R2,#0			;intialize string length counter (down-counter)
+				MOVS	R3,#0x00		;Store null in R3
+				MOVS	R4,#0			;initialize up-counter
+RSFindStringLength
+				LDRB	R1,[R0,R2]		;Get character at begining of string, store in R1
+				CMP		R1,R3			;Compare to null
+				BEQ		RSLoopCond	
+				ADDS	R2,R2,#1		;Increment counter since we have not reached end of string
+				B		RSFindStringLength
+RSLoopCond
+				CMP		R2,R4			;Compare counters
+				BLS		RSEnd			;When equal(string is odd length) or down counter is less than up counter(string is even length)
+RSLoop
+				LDRB	R6,[R0,R4]		;Get character at begining, store in R5
+				LDRB	R5,[R0,R2]		;Get character at end, store in R5
+				STRB	R6,[R0,R2]		;Store char from begining at end
+				STRB	R5,[R0,R4]		;Store char from end at begining
+				B		RSLoopCond
+RSEnd		
+				POP		{R0-R7,PC}
+				BX		LR
+				
+			
+				
+
+				

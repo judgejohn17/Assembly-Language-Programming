@@ -1,0 +1,69 @@
+;John Judge
+;Alessandro Sarra
+;Assembly Language Programming
+;4/14/16		
+
+;Exercise 10 Prelab
+
+
+;This subroutine initializes PIT to generate an interupt
+;every 0.01s from channel 0
+;Inputs: 
+;	None
+;Outputs: 
+;	None
+Init_PIT_IRQ
+			CPSID I
+			PUSH {R0, R1, R2, LR}
+			LDR R0, =SIM_SCGC6 				;Initialize
+			LDR R1, =SIM_SCGC6_PIT_MASK
+			LDR R2, [R0, #0]
+			ORRS R2, R2, R1					;Set only the PIT bit on SIM_SCGC6
+			STR R2, [R0, #0]				;Store set bit back on to the register
+			LDR R0, =PIT_CH0_BASE			;Disable timer 0 
+			LDR R1, =PIT_TCTRL_TEN_MASK
+			LDR R2, [R0, #PIT_TCTRL_OFFSET]
+			BICS R2, R2, R1
+			STR R2, [R0, #PIT_TCTRL_OFFSET]
+			LDR R0, =PIT_BASE 				;Enable the PIT timer module
+			LDR R1, =PIT_MCR_EN_FRZ			;Enable the FRZ to stop timer in debug mode
+			STR R1, [R0, #PIT_MCR_OFFSET]
+			LDR R0, =PIT_CH0_BASE			;Request interrupts every 0.01 seconds
+			LDR R1, =PIT_LDVAL_10ms ;239,999
+			STR R1, [R0, #PIT_LDVAL_OFFSET]
+			LDR R0, =PIT_CH0_BASE			;Enable PIT timer channel 0 for interrupts
+			MOVS R1, #PIT_TCTRL_CH_IE		;Interrupt enabled mask to write to the register
+			STR R1, [R0, #PIT_TCTRL_OFFSET]
+			LDR R0, =NVIC_ISER				;Unmask PIT Interrupts
+			LDR R1, =PIT_IRQ_MASK
+			STR R1, [R0, #0]
+			LDR R0, =PIT_IPR  				;Set PIT Interrupt Priority
+			LDR R1, =(PIT_IRQ_PRI << PIT_PRI_POS)
+			STR R1, [R0, #0]
+			CPSIE I
+			POP {R0, R1, R2, PC}
+
+
+
+;Timer Interrupt Service Routine
+;THis subroutine increments a counter when RunStopWatch is equal to 0
+;Otherwise it does not 
+PIT_ISR
+			LDR R0, =RunStopWatch			;Initialize
+			LDRB R0, [R0, #0]
+			CMP R0, #0 						;If 1
+			BNE INCR_COUNT
+			B END_PIT_ISR					;If 0
+			
+INCR_COUNT
+			LDR R0, =Count  				;Add #1 to count if stopwatch is running
+			LDR R1, [R0, #0]
+			ADDS R1, R1, #1
+			STR R1, [R0, #0] 				;Store value
+
+END_PIT_ISR
+			
+			LDR R0, =PIT_CH0_BASE 			;;Clear interrupt condition
+			LDR R1, =PIT_TFLG_TIF_MASK
+			STR R1, [R0, #PIT_TFLG_OFFSET]
+			BX LR

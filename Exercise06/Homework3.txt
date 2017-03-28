@@ -1,0 +1,113 @@
+John Judge
+Alessandro Sarra
+Assembly Language Programming
+3/2/16
+
+
+;Problem 1 
+for (R0 = 0; R0 < 80; R0++)
+	String[R0] = String[R0] XOR 0x5A
+----------------------------------------------------------------------------------------------
+;Solution One, Conditional Branch Instruction, Indexed mode addressing
+
+;R0 = Index 
+;R1 = Value in string 
+;R2 = Pointer to String
+;R3 = N (as in Nth element in String)
+Values 			EQU		80			;String is 80 elements long
+;Main				
+				LDR		R3,=N	    ;We want to iterate through the first 80 values in String 
+				MOVS	R0,#STRING  ;Need to get Index value
+				STR 	R0,[R3,#0]	;
+				MOVS	R1,#0       ;Initial Value 
+				LDR		R2,=STRING  ;Base, or starting address of string
+
+ForInit
+				MOVS	R0,#0 	    ;Initial index is 0
+ForCond
+				CMP		R0,R3		;Compare index to 80
+				BHS		ForEnd		;Branch if index is higher or same as 80
+ForBody		
+				STRB	R1,[R2,R0]  ;Store byte
+				EORS	R1,R1,#0x5A	;XOR byte with 0x5A
+ForStep
+				ADDS 	R0,R0,#1	;Increment index by 1
+				BL		ForCond		;Branch back to check condition
+ForEnd								;When the Forloop condition isnt met it ends and branches here
+Done			B  		.			;Code ends
+;End Main
+MyData			AREA,DATA,READWRITE
+String 			SPACE 	Values
+N               DCD		Values
+
+
+;Solution Two, Conditional branch, Displacement mode addressing 
+;R0 = Index 
+;R1 = Value in string
+;R2 = pointer in string 
+;R3 = past position in string 
+Values 			EQU		80			;String is 80 elements long
+;Main Code
+				LDR		R3,=N	    ;We want to iterate through the first 80 values in String 
+				MOVS	R0,#STRING  ;Need to get Index value
+				STR 	R0,[R3,#0]	;
+				MOVS	R1,#0       ;Initial Value 
+				LDR		R2,=STRING  ;Base, or starting address of string
+				ADDS    R0,R2,R3	;This is the end point of the string (Base+length)
+
+ForCond
+				CMP		R2,R0		;Is pointer less, same, or higher than the end point?
+				BHS		ForEnd		;Branch if index is higher or same as 80
+ForBody		
+				STRB	R1,[R2,#0]  ;Store byte at pointer in R1
+				EORS	R1,R1,#0x5A	;XOR byte with 0x5A
+				ADDS    R2,R2,#1	;Increment pointer
+				BL		ForCond
+ForEnd								;When the Forloop condition isnt met it ends and branches here
+Done			B  		.			;Code ends
+;End Main
+MyData			AREA,DATA,READWRITE
+String 			SPACE 	Values
+
+;Problem 2
+;Subroutine Min
+----------------------------------------------------------------------------------------------
+;Solution One
+Min
+;Accepts a pointer to an array of signed words in register R1. 
+;Accepts a word value in register R2, which indicates the number of array elements. 
+;Returns the minimum of the array elements in register R0. 
+;On return, preserves contents of all registers, other than return result register and PSR
+				Push{R1,R2,R3}		;Push everything so not to change contents	
+				MOVS	R3,#0		;Offset should be 0
+				MOVS	R0,[R1,#0]	;Loads first value in array
+loop			
+				CMP		R0,[R1,#R3]	;Compare pointer 
+				BGE		LoopDo		;If not smaller than the current smallest value then dont replace		
+				MOVS	R0,[R1,#R3]
+LoopDo  		
+				ADDS 	R3,R3,#1	;Increment offset
+				SUBS	R2,R2,#1	;Decrement number of elements remaining
+				CMP		R2,#0		;Compare to see if there is any elements remaining 
+				BGT		loop		;loop if there is still elements
+				Pop{R1,R2,R3}		;Pop everything back
+
+;Solution Two
+Min
+;Accepts a pointer to an array of signed words in register R1. 
+;Accepts a word value in register R2, which indicates the number of array elements. 
+;Returns the minimum of the array elements in register R0. 
+;On return, preserves contents of all registers, other than return result register and PSR
+				Push{R1,R2,R3}		;Push everything so not to change contents	
+				MOVS	R4,R1		;
+loop	
+				LDM		R4!,{1}		;Load address LDM increments the value each time by 4
+				CMP		R0,[R4,#0]	;Loads first value in array
+				BGE		LoopDo		;If not smaller than the current smallest value then dont replace		
+				MOVS	R0,[R4,#0]
+LoopDo	
+				SUBS	R2,R2,#1	;Decrement number of elements remaining
+				CMP		R2,#0		;Compare to see if there is any elements remaining 
+				BGT		loop		;loop if there is still elements
+				POP		{R2-R3}
+				Pop{R1,R2,R3}		;Pop everything back

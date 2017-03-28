@@ -1,0 +1,206 @@
+;John Judge
+;Alessandro Sarra
+;Aseembly Language programming
+;4/21/16
+
+;Prelab Exercise 11
+
+
+;This subroutine adds the n-word unsigned number in register R2 to 
+;the n-word unsigned numbe rin register R1. The result
+;is then stored in memory at address R0. The value located
+;in R3 is the number of words of each number that will be added.
+;R0 is then overwritten with either a 0 for success or the 
+;value of 1 for failure (overflow)
+
+;Load in values one word (register) at a time
+;And add using ADCS to utilize the state of the ASPR c 
+;bit when carrying operations over.
+
+;Inputs:
+	;R0 = mem address to store result added number
+    ;R1 = mem address of number 1 to add
+    ;R2 = mem address of number 2 to add
+    ;R3 = size (number of words) that numbers in R1 and R2 coorespond to
+;Outputs
+	;R0 = Status value (0 for success and 1 for overflow)
+AddIntMultiU
+            PUSH 	{R1-R7,LR}
+            PUSH 	{R0-R1}
+            LDR 	R0,=APSRState 	;Initalize state of APSR C Flag
+            MOVS 	R1,#0;
+            STRB 	R1,[R0,#0]
+            POP 	{R0-R1}
+            MOVS 	R5,#0			;Initalize offset to 0
+
+AddIntMultiUloop
+            CMP 	R3,#0			;If counter is 0
+            BEQ 	EndAddIntMultiUloop
+            LDR 	R6,[R1,R5]		;Load first number
+            LDR 	R7,[R2,R5]		;Load second number
+            SUBS 	R3,R3,#1		;Decrement counter
+			BL 		SetAPSRState	;Load state of APSR
+            ADCS 	R6,R6,R7		;Add with carry
+            BL 		WriteAPSRC		;Save the state of the carry flag after the addition
+            STR 	R6,[R0,R5]		;Store the result
+            BCS 	CheckForOverflow	;If carry set then theres overflow
+			ADDS 	R5,R5,#4		;Increment offset to next word
+            B 		AddIntMultiUloop		;Continue adding
+
+CheckForOverflow
+            CMP 	R3,#0			;Check counter, want to be in most significant byte
+            BNE 	AddIntMultiUloop		;If not end go back
+            MOVS 	R0,#1			;Signal overlflow by settin R1
+
+EndAddIntMultiUloop
+            CMP 	R0,#1			;If overflow is already set 
+            BNE 	NoOverflow		;If not, success!
+            B 		EndAddIntMultiU	;We done! 
+            
+NoOverflow
+            MOVS 	R0,#0			;Operations that do not have carry have R0 set to 0
+
+EndAddIntMultiU
+            POP {R1-R7, PC}			;Restore values
+			
+;sub subroutines, I'm not sure if this is the most efficent way to go aboyut this
+
+WriteAPSRC
+            MRS 	R7,APSR
+            LSRS 	R7,#28            
+            MOVS 	R1,#2           
+            ANDS 	R7,R7,R4        
+            LSRS 	R7,R7,#2
+            LDR 	R1,=APSRState
+            STRB 	R7,[R4,#0]
+            BX 		LR
+;Next sub subroutine
+SetAPSRState
+            PUSH 	{R0-R3}   		;Ran out of registers
+            LDR 	R0,=APSRState	;Set the state of the APSR
+            LDRB 	R0,[R0,#0]
+            CMP 	R0,#0
+            BNE 	SetCFlag   
+            MRS 	R2,APSR			;Otherwise clear the C flag
+			MOVS 	R3,#0x20
+			LSLS 	R2,R2,#24
+			BICS 	R2,R2,R3
+			MSR		APSR,R2   
+            B 		EndWriteAPSR
+SetCFlag
+            MRS 	R2,APSR			;Set the C flag of the APSR
+			MOVS 	R3,#0x20
+			LSLS 	R3,R3,#24
+			ORRS 	R2,R2,R3
+EndWriteAPSR
+			MSR APSR, R2
+            POP {R0 - R3}
+            BX LR
+
+/*********************************************************************/
+/* Switch to C, GetHexIntMulti, PutHexIntMulti						 */
+/*********************************************************************/
+
+/*********************************************************************/
+/* Getsan n-word unsigned number fporm user typer in hexadecimal     */
+/* and converts it to a binary unsigned NumberOfWords-word number.   */
+/* Parameters:														 */
+/*				*Pointer: Pointer to n-word usnigned number*/		 */
+/*				NumberOfWords:	 Number's vaslue					 */
+/* If user input is invalid, returns 1; otherwise returns 0.         */  
+/* Calls:  GetStringSB                                               */
+/*********************************************************************/
+int GetHexIntMulti (UInt32 *Pointer, int NumberOfWords) {
+	unsigned int i;
+	int ConvertoLowerAscii = 87;
+	int ConvertoUpperAscii = 55;
+	int ConvertoNumberAscii = '0';
+    int ByteStoreSore = 0;
+    int BinaryRepresentaion;
+    
+
+    char input[MAX_STRING];				//Memory location to take user input 
+	GetStringSB(input, NumberOfWords * 8);
+	
+	if(NumberOfWords * 8 != length(input)) {	//Length of string is not okay
+      return 1;
+    }		
+	for (i = 0; i < length(input); i++) {
+		if(input[i] >= 'a' && input[i] <= 'f') {	//Convert to lowercase ascii
+		  BinaryRepresentaion = input[i] - ConvertoLowerAscii;	
+		}	
+		else if(input[i] >= 'A' && input[i] <= 'F') {	//convert to uppercase ascii
+		  BinaryRepresentaion = input[i] - ConvertoUpperAscii;
+		}
+		else if(input[i] >= '0' && input[i] <= '9') {	//convert to number ascii
+			BinaryRepresentaion = input[i] - ConvertoNumberAscii;
+		}	
+		else {//If something else came in 
+		  return 1;
+		}
+		if(i % 2 == 0) { //First half of byte is processed then concatanate with next byter
+	      ByteStoreSore = BinaryRepresentaion << 4;
+		}
+		else {		//Combine the two bytes to store
+			ByteStoreSore = ByteStoreSore + BinaryRepresentaion;
+			/*Actually store the value to the number*/
+			((UInt8 *) Number)[i / 2] = ByteStoreSore; 
+		}
+	}
+	return 0;	//If result is valid return 0
+} 
+
+/*********************************************************************/
+/* Prints hex representation of an unsigned multi-word number of     */
+/* NumberOfWords words.                                              */
+/* Calls:  PutStringSB                                               */
+/*********************************************************************/
+void PutHexIntMulti (UInt32 *Pointer, int NumberOfWords) {
+    
+	int Counter = 0;
+	int NumberOfBytes = NumberOfWords * 4;
+	char ResultString[NUM_CHARS];
+	unsigned int i;
+	
+	for(i = 0; i < NumberOfBytes; i++) {		//Read each byte of each words
+		int byteValue = ((UInt8 *) Number) [i];
+		int leastSigByteMsk = 0x0F;
+		int leastSigChar = byteValue & leastSigByteMsk; 
+		int mostSigByteMsk = 0xF0;
+		int mostSigChar = (byteValue & mostSigByteMsk) >> 4;
+		mostSigChar = ConvertToAscii(mostSigChar);		//Convert most significant char to ascii 
+		leastSigChar = ConvertToAscii(leastSigChar);	//Convert least significant char to ascii
+		ResultString[Counter] = mostSigChar;
+		Counter++;								//Increment offset
+		ResultString[Counter] = leastSigChar;
+		Counter++;								//Increment offset 
+	}
+	ResultString[Counter] = 0;				//null terminate
+	PutStringSB(ResultString, MAX_STRING);	//Print to console 
+}
+
+//Determines length of string
+int length(char String[]) {
+  unsigned int i;
+  unsigned int Counter = 0;
+	
+  for(i = 0; i < MAX_STRING; i++) {
+    if (String[i] == 0) {
+	  return Counter;
+    }
+    else {
+      Counter++;   
+    }
+  }
+  return Counter;
+}
+
+//Converts to ascii 
+int ConvertsToAscii(int numericRep) {
+  if(numericRep >= 0 && numericRep <= 9) {
+    return numericRep + '0'; 
+  }
+  else {
+    return numericRep + 55;
+  }
+}

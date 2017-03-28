@@ -1,0 +1,6 @@
+-c --cpu Cortex-M0+ -g -O0 --apcs=interwork --split_sections
+-I D:\Assembly\RTE
+-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include
+-I C:\Keil_v5\ARM\CMSIS\Include
+-D__UVISION_VERSION="515" -DMKL46Z256xxx4
+-o .\objects\exercise11_c_template.o --omf_browse .\objects\exercise11_c_template.crf --depend .\objects\exercise11_c_template.d "Exercise11_C_Template.c"

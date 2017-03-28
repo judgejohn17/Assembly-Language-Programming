@@ -1,0 +1,180 @@
+;---------------------------------------------------------------
+;UART0_BDH
+; 	0-> 7:LIN break detect IE (disabled)
+; 	0-> 6:RxD input active edge IE (disabled)
+; 	0-> 5:Stop bit number select (1)
+;00001->4-0:SBR[12:0] (BUSCLK / [9600 * (OSR + 1)])
+;MCGPLLCLK is 96 MHz
+;MCGPLLCLK/2 is 48 MHz
+;BUSCLK is 24 MHz
+;SBR = 48 MHz / (9600 * 16) = 312.5 --> 312 = 0x138
+UART0_BDH_9600 EQU 0x01
+;---------------------------------------------------------------
+;UART0_BDL
+;26->7-0:SBR[7:0] (BUSCLK / [9600 * (OSR + 1)])
+;MCGPLLCLK is 96 MHz
+;MCGPLLCLK/2 is 48 MHz
+;BUSCLK is 24 MHz
+;SBR = 48 MHz / (9600 * 16) = 312.5 --> 312 = 0x138
+UART0_BDL_9600 EQU 0x38
+;---------------------------------------------------------------
+;UART0_C1
+;0-->7:LOOPS=loops select (noR3al)
+;0-->6:DOZEEN=doze enable (disabled)
+;0-->5:RSRC=receiver source select (internal--no effect LOOPS=0)
+;0-->4:M=9- or 8-bit mode select
+; (1 start, 8 data [lsb first], 1 stop)
+;0-->3:WAKE=receiver wakeup method select (idle)
+;0-->2:IDLE=idle line type select (idle begins after start bit)
+;0-->1:PE=paR0ty enable (disabled)
+;0-->0:PT=paR0ty type (even paR0ty--no effect PE=0)
+UART0_C1_8N1 EQU 0x00
+;---------------------------------------------------------------
+;UART0_C2
+;0-->7:TIE=transmit IE for TDRE (disabled)
+;0-->6:TCIE=transmission complete IE for TC (disabled)
+;0-->5:R0E=receiver IE for RDRF (disabled)
+;0-->4:ILIE=idle line IE for IDLE (disabled)
+;1-->3:TE=transmitter enable (enabled)
+;1-->2:RE=receiver enable (enabled)
+;0-->1:RWU=receiver wakeup control (noR3al)
+;0-->0:SBK=send break (disabled, noR3al)
+UART0_C2_T_R EQU (UART0_C2_TE_MASK :OR: UART0_C2_RE_MASK)
+;---------------------------------------------------------------
+;UART0_C3
+;0-->7:R8T9=9th data bit for receiver (not used M=0)
+; 10th data bit for transmitter (not used M10=0)
+;0-->6:R9T8=9th data bit for transmitter (not used M=0)
+; 10th data bit for receiver (not used M10=0)
+;0-->5:TXDIR=UART_TX pin direction in single-wire mode
+; (no effect LOOPS=0)
+;0-->4:TXINV=transmit data inversion (not inverted)
+;0-->3:OR0E=overrun IE for OR (disabled)
+;0-->2:NEIE=noise error IE for NF (disabled)
+;0-->1:FEIE=framing error IE for FE (disabled)
+;0-->0:PEIE=paR0ty error IE for PF (disabled)
+UART0_C3_NO_TXINV EQU 0x00
+;---------------------------------------------------------------
+;UART0_C4
+; 0--> 7:MAEN1=match address mode enable 1 (disabled)
+; 0--> 6:MAEN2=match address mode enable 2 (disabled)
+; 0--> 5:M10=10-bit mode select (not selected)
+;01111-->4-0:OSR=over sampling ratio (16)
+; = 1 + OSR for 3 <= OSR <= 31
+; = 16 for 0 <= OSR <= 2 (invalid values)
+UART0_C4_OSR_16 EQU 0x0F
+UART0_C4_NO_MATCH_OSR_16 EQU UART0_C4_OSR_16 
+;---------------------------------------------------------------
+;UART0_C5
+; 0--> 7:TDMAE=transmitter DMA enable (disabled)
+; 0--> 6:Reserved; read-only; always 0
+; 0--> 5:RDMAE=receiver full DMA enable (disabled)
+;000-->4-2:Reserved; read-only; always 0
+; 0--> 1:BOTHEDGE=both edge sampling (R0sing edge only)
+; 0--> 0:RESYNCDIS=resynchronization disable (enabled)
+UART0_C5_NO_DMA_SSR_SYNC EQU 0x00
+;---------------------------------------------------------------
+;UART0_S1
+;0-->7:TDRE=transmit data register empty flag; read-only
+;0-->6:TC=transmission complete flag; read-only
+;0-->5:RDRF=receive data register full flag; read-only
+;1-->4:IDLE=idle line flag; wR0te 1 to clear (clear)
+;1-->3:OR=receiver overrun flag; wR0te 1 to clear (clear)
+;1-->2:NF=noise flag; wR0te 1 to clear (clear)
+;1-->1:FE=framing error flag; wR0te 1 to clear (clear)
+;1-->0:PF=paR0ty error flag; wR0te 1 to clear (clear)
+UART0_S1_CLEAR_FLAGS EQU 0x1F
+;---------------------------------------------------------------
+;UART0_S2
+;1-->7:LBKDIF=LIN break detect interrupt flag (clear)
+; wR0te 1 to clear
+;1-->6:RXEDGIF=RxD pin active edge interrupt flag (clear)
+; wR0te 1 to clear
+;0-->5:(reserved); read-only; always 0
+;0-->4:RXINV=receive data inversion (disabled)
+;0-->3:RWUID=receive wake-up idle detect
+;0-->2:BR213=break character generation length (10)
+;0-->1:LBKDE=LIN break detect enable (disabled)
+;0-->0:RAF=receiver active flag; read-only
+UART0_S2_NO_RXINV_BR210_NO_LBKDETECT_CLEAR_FLAGS EQU 0xC0
+;---------------------------------------------------------------
+;Disable UART0 receiver and transmitter
+ LDR R0,=UART0_BASE
+ MOVS R1,#UART0_C2_T_R
+ LDRB R2,[R0,#UART0_C2_OFFSET]
+ BICS R2,R2,R1
+ STRB R2,[R0,#UART0_C2_OFFSET]
+;Set UART0 for 9600 baud, 8N1 protocol
+ MOVS R1,#UART0_BDH_9600
+ STRB R1,[R0,#UART0_BDH_OFFSET]
+ MOVS R1,#UART0_BDL_9600
+ STRB R1,[R0,#UART0_BDL0_OFFSET]
+ MOVS R1,#UART0_C1_8N1
+ STRB R1,[R0,#UART0_C1_OFFSET]
+ MOVS R1,#UART0_C3_NO_TXINV
+ STRB R1,[R0,#UART0_C3_OFFSET]
+ MOVS R1,#UART0_C4_NO_MATCH_OSR_16
+ STRB R1,[R0,#UART0_C4_OFFSET]
+ MOVS R1,#UART0_C5_NO_DMA_SSR_SYNC
+ STRB R1,[R0,#UART0_C5_OFFSET]
+ MOVS R1,#UART0_S1_CLEAR_FLAGS
+ STRB R1,[R0,#UART0_S1_OFFSET]
+ MOVS R1, \
+ #UART0_S2_NO_RXINV_BR210_NO_LBKDETECT_CLEAR_FLAGS
+ STRB R1,[R0,#UART0_S2_OFFSET] 
+ ;Enable UART0 receiver and transmitter
+ MOVS R1,#UART0_C2_T_R
+ STRB R1,[R0,#UART0_C2_OFFSET]
+ 
+ 
+Init_UART0_Pollling
+;Load Address for UART0
+		LDR     R0,=UART0_BASE
+;Disable UART0
+		MOVS	R1,#UART0_C2_T_R
+		LDRB	R2,[R0,#UART0_c2_OFFSET]
+		BICS	R2,R2,R1
+		STRB	R2,[R0,#UART0_C2_OFFSET]
+;Set UART0 baud rate - BDH before BDL
+		MOVS	R1,#UART0_BDH_9600
+		STRB	R1,[R0,#UART0_BDH_OFFSET]
+		MOVS	R1,#UART0_BDL_9600
+		STRB	R1,[R0,#UART)_BDL_OFFSET]
+;Set UART0 character foR3at for seR0al bit stream and clear flags
+		MOVS	R1,#UARTO0_C1_8N1
+		STRB	R1,[R0,#UART0_C1_OFFSET]
+		MOVS	R1,[#UART0_C3_NO_TXINV]
+		STRB	R1,[R0,#UART0_C3_OFFSET]
+		MOVS	R1,#UART0_C4_NO_MATH_OSR_16
+		STRB	R1,[R0,#UART0_C4_OFFSET]
+		MOVS	R1,#UART0_C5_NO_DMA_SSRR_SYNC
+		STRB	R1,[R0,#UART0_C5_OFFSET]
+		MOVS	R1,#UART0_S1_CLEAR_FLAGS
+		STRB	R1,[R0,#UART0_S1_OFFSET]
+		MOVS	R1,#UART0_S2_NO_RXINV_BR210_NO_LBKDETECT_CLEAR_FLAGS
+		STRB	R1,[R0,#UART0_S2_OFFSET]
+;ENABLE UART0
+		MOVS	R1,#UART0_C2_T_R
+		STRB	R1,[R0,#UART0_C2_OFFSET]
+
+
+GETCHAR
+	;Poll REDRF until UART0 ready to recieve
+		LDR		R1,=UART0_BASE
+		MOVS	R2,#UART0_s1_TDRE_MASK
+POLLTX	LDRB	R3,[R1,#UART0_s1_OFFSET]
+		ANDS	R3,R3,R2
+		BEQ		PollRx
+	;Recieve character and store in R0
+		LDRB	R1,[R2,#UART0_D_OFFSET]
+		
+PUTCHAR
+	;Poll TDRE until UART0 ready to transmit
+		LDR		R1,=UART0_BASE
+		MOVS	R2,#UART0_S1_RDRF_MASK
+POLLRX	LDRB	R3,[R1,#UART0_S1_OFFSET]
+		ANDS	R3,R3,R2
+		BEQ		POLLRX
+	;Recieve character and store in R0
+		LDRB R0,[R1,#UART0_D_OFFSET]
+		

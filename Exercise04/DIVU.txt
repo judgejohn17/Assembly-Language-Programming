@@ -1,0 +1,28 @@
+DIVU        PUSH    {R2}        ;store R2 Value
+            MOVS    R2,#0       ;move 0 to R2 for quotient
+            CMP     R0,#0       ;Compare divisor to 0
+            BEQ     SETCARRY    ;if divisor = 0 go to SETCARRY
+WHILE       CMP     R1,R0       ;Compare R1 to R0
+            BLT     ENDWHILE    ;if dividend<Divisor End loop
+            ADDS    R2,R2,#1    ;Add 1 to quotient
+            SUBS    R1,R1,R0    ;Dividend - divisor
+            B       WHILE       ;branch to start of while
+ENDWHILE    
+            MOVS    R0,R2       ;move quotient to R0, so R0 remainder R1
+            POP     {R2}        ;revert R2 to value before subroutine
+            PUSH    {R0,R1}     ;push R0 and R1
+            MRS     R0,APSR     ;Set C flag to 0
+            MOVS    R1,#0x20    ;
+            BICS    R0,R0,R1    ; 
+            MSR     APSR,R0     ; 
+            POP     {R0,R1}     ;revert R0 and R1 to answer
+GOBACK      BX      LR          ;Go back to program
+SETCARRY    
+			POP     {R2}		;Pop R2
+            PUSH    {R0,R1}     ;Store R0 and R1
+            MRS     R0,APSR     ; Set C flag to 1
+            MOVS    R1,#0x20    ;
+            ORRS    R0,R0,R1    ;
+            MSR     APSR,R0     ;
+            POP     {R0,R1}     ;Revert R0 and R1 to answer
+            BX      LR          ;Go back to program

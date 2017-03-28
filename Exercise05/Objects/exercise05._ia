@@ -1,0 +1,6 @@
+--cpu Cortex-M0+ -g --apcs=interwork 
+-I D:\Assembly\RTE
+-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include
+-I C:\Keil_v5\ARM\CMSIS\Include
+--pd "__UVISION_VERSION SETA 515" --pd "MKL46Z256xxx4 SETA 1"
+--list .\listings\exercise05.lst -o .\objects\exercise05.o --depend .\objects\exercise05.d "Exercise05.s"

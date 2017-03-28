@@ -1,0 +1,7 @@
+Dependencies for Project 'Exercise11', Target 'Target 1': (DO NOT MODIFY !)
+F (.\Exercise11.s)(0x572187E8)(--cpu Cortex-M0+ -g --apcs=interwork -I D:\Assembly\RTE-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-I C:\Keil_v5\ARM\CMSIS\Include--pd "__UVISION_VERSION SETA 515" --pd "MKL46Z256xxx4 SETA 1"--list .\listings\exercise11.lst --length 49 --width 120 -o .\objects\exercise11.o --depend .\objects\exercise11.d)
+I (MKL46Z4.s)(0x571921B4)
+F (.\Start.s)(0x57217AAC)(--cpu Cortex-M0+ -g --apcs=interwork -I D:\Assembly\RTE-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-I C:\Keil_v5\ARM\CMSIS\Include--pd "__UVISION_VERSION SETA 515" --pd "MKL46Z256xxx4 SETA 1"--list .\listings\start.lst --length 49 --width 120 -o .\objects\start.o --depend .\objects\start.d)
+I (MKL46Z4.s)(0x571921B4)
+F (.\Exercise11_C_Template.c)(0x57217D88)(-c --cpu Cortex-M0+ -g -O0 --apcs=interwork --split_sections-I D:\Assembly\RTE-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-I C:\Keil_v5\ARM\CMSIS\Include-D__UVISION_VERSION="515" -DMKL46Z256xxx4-o .\objects\exercise11_c_template.o --omf_browse .\objects\exercise11_c_template.crf --depend .\objects\exercise11_c_template.d)
+I (Exercise11_C.h)(0x5721348A)

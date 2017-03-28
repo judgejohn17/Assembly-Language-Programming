@@ -1,0 +1,1137 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000         
+    2 00000000         ;The following program produces secure subroutiines for the serial
+    3 00000000         ;I/0 of strings and a specified program to write them
+    4 00000000         
+    5 00000000         ;Name:  John Judge
+    6 00000000         ;Date:  4/1/16-4/4/16
+    7 00000000         ;Class:  CMPE-250
+    8 00000000         ;Section:  Thursdays 2:00Pm-3:50PM
+    9 00000000         ;Fix PutNumU and write main. Find way to move cursor
+   10 00000000         ;---------------------------------------------------------------
+   11 00000000         ;Keil Template for KL46
+   12 00000000         ;R. W. Melton
+   13 00000000         ;ApR0l 3, 2015
+   14 00000000         ;****************************************************************
+   15 00000000         ;Assembler directives
+   16 00000000                 THUMB
+   18 00000000         ;****************************************************************
+   19 00000000         ;Include files
+   20 00000000                 GET              MKL46Z4.s   ;Included by start.s
+   22 00000000         ;****************************************************************
+   23 00000000         ;Equates
+   24 00000000 0000004F 
+                       MAX_STRING
+                               EQU              79          ;MaxStringCharacters(including null termination) 
+   25 00000000         ;PORTx_PCRn (Port x pin control register n [for pin n])
+   26 00000000         ;___->10-08:Pin mux control (select 0 to 8)
+   27 00000000         ;Use provided PORT_PCR_MUX_SELECT_2_MASK
+   28 00000000         ;---------------------------------------------------------------
+   29 00000000         ;Port A
+   30 00000000 01000200 
+                       PORT_PCR_SET_PTA1_UART0_RX
+                               EQU              (PORT_PCR_ISF_MASK :OR: PORT_PCR_MUX_SELECT_2_MASK)
+   31 00000000 01000200 
+                       PORT_PCR_SET_PTA2_UART0_TX
+                               EQU              (PORT_PCR_ISF_MASK :OR: PORT_PCR_MUX_SELECT_2_MASK)
+   32 00000000         ;---------------------------------------------------------------
+   33 00000000         ;SIM_SCGC4
+   34 00000000         ;1->10:UART0 clock gate control (enabled)
+   35 00000000         ;Use provided SIM_SCGC4_UART0_MASK
+   36 00000000         ;---------------------------------------------------------------
+   37 00000000         ;SIM_SCGC5
+   38 00000000         ;1->09:Port A clock gate control (enabled)
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+   39 00000000         ;Use provided SIM_SCGC5_PORTA_MASK 
+   40 00000000         ;---------------------------------------------------------------
+   41 00000000         ;SIM_SOPT2
+   42 00000000         ;01=27-26:UART0SRC=UART0 clock source select
+   43 00000000         ; (PLLFLLSEL determines MCGFLLCLK' or MCGPLLCLK/2)
+   44 00000000         ; 1= 16:PLLFLLSEL=PLL/FLL clock select (MCGPLLCLK/2)
+   45 00000000 04000000 
+                       SIM_SOPT2_UART0SRC_MCGPLLCLK
+                               EQU              (1 << SIM_SOPT2_UART0SRC_SHIFT)
+   46 00000000 04010000 
+                       SIM_SOPT2_UART0_MCGPLLCLK_DIV2
+                               EQU              (SIM_SOPT2_UART0SRC_MCGPLLCLK :OR: SIM_SOPT2_PLLFLLSEL_MASK)
+   47 00000000         ;---------------------------------------------------------------
+   48 00000000         ;SIM_SOPT5
+   49 00000000         ; 0-> 16:UART0 open drain enable (disabled)
+   50 00000000         ; 0-> 02:UART0 receive data select (UART0_RX)
+   51 00000000         ;00->01-00:UART0 transmit data select source (UART0_TX)
+   52 00000000 00010007 
+                       SIM_SOPT5_UART0_EXTERN_MASK_CLEAR
+                               EQU              (SIM_SOPT5_UART0ODE_MASK :OR: SIM_SOPT5_UART0RXSRC_MASK :OR: SIM_SOPT5_U
+ART0TXSRC_MASK)
+   53 00000000         ;---------------------------------------------------------------
+   54 00000000         ;UART0_BDH
+   55 00000000         ; 0-> 7:LIN break detect IE (disabled)
+   56 00000000         ; 0-> 6:RxD input active edge IE (disabled)
+   57 00000000         ; 0-> 5:Stop bit number select (1)
+   58 00000000         ;00001->4-0:SBR[12:0] (BUSCLK / [9600 * (OSR + 1)])
+   59 00000000         ;MCGPLLCLK is 96 MHz
+   60 00000000         ;MCGPLLCLK/2 is 48 MHz
+   61 00000000         ;BUSCLK is 24 MHz
+   62 00000000         ;SBR = 48 MHz / (9600 * 16) = 312.5 --> 312 = 0x138
+   63 00000000 00000001 
+                       UART0_BDH_9600
+                               EQU              0x01
+   64 00000000         ;---------------------------------------------------------------
+   65 00000000         ;UART0_BDL
+   66 00000000         ;26->7-0:SBR[7:0] (BUSCLK / [9600 * (OSR + 1)])
+   67 00000000         ;MCGPLLCLK is 96 MHz
+   68 00000000         ;MCGPLLCLK/2 is 48 MHz
+   69 00000000         ;BUSCLK is 24 MHz
+   70 00000000         ;SBR = 48 MHz / (9600 * 16) = 312.5 --> 312 = 0x138
+   71 00000000 00000038 
+
+
+
+ARM Macro Assembler    Page 3 
+
+
+                       UART0_BDL_9600
+                               EQU              0x38
+   72 00000000         ;---------------------------------------------------------------
+   73 00000000         ;UART0_C1
+   74 00000000         ;0-->7:LOOPS=loops select (normal)
+   75 00000000         ;0-->6:DOZEEN=doze enable (disabled)
+   76 00000000         ;0-->5:RSRC=receiver source select (internal--no effect LOOPS=0)
+   77 00000000         ;0-->4:M=9- or 8-bit mode select
+   78 00000000         ; (1 start, 8 data [lsb first], 1 stop)
+   79 00000000         ;0-->3:WAKE=receiver wakeup method select (idle)
+   80 00000000         ;0-->2:IDLE=idle line type select (idle begins after start bit)
+   81 00000000         ;0-->1:PE=parity enable (disabled)
+   82 00000000         ;0-->0:PT=parity type (even parity--no effect PE=0)
+   83 00000000 00000000 
+                       UART0_C1_8N1
+                               EQU              0x00
+   84 00000000         ;---------------------------------------------------------------
+   85 00000000         ;UART0_C2
+   86 00000000         ;0-->7:TIE=transmit IE for TDRE (disabled)
+   87 00000000         ;0-->6:TCIE=transmission complete IE for TC (disabled)
+   88 00000000         ;0-->5:RIE=receiver IE for RDRF (disabled)
+   89 00000000         ;0-->4:ILIE=idle line IE for IDLE (disabled)
+   90 00000000         ;1-->3:TE=transmitter enable (enabled)
+   91 00000000         ;1-->2:RE=receiver enable (enabled)
+   92 00000000         ;0-->1:RWU=receiver wakeup control (normal)
+   93 00000000         ;0-->0:SBK=send break (disabled, normal)
+   94 00000000 0000000C 
+                       UART0_C2_T_R
+                               EQU              (UART0_C2_TE_MASK :OR: UART0_C2_RE_MASK)
+   95 00000000         ;---------------------------------------------------------------
+   96 00000000         ;UART0_C3
+   97 00000000         ;0-->7:R8T9=9th data bit for receiver (not used M=0)
+   98 00000000         ; 10th data bit for transmitter (not used M10=0)
+   99 00000000         ;0-->6:R9T8=9th data bit for transmitter (not used M=0)
+  100 00000000         ; 10th data bit for receiver (not used M10=0)
+  101 00000000         ;0-->5:TXDIR=UART_TX pin direction in single-wire mode
+  102 00000000         ; (no effect LOOPS=0)
+  103 00000000         ;0-->4:TXINV=transmit data inversion (not inverted)
+  104 00000000         ;0-->3:ORIE=overrun IE for OR (disabled)
+  105 00000000         ;0-->2:NEIE=noise error IE for NF (disabled)
+  106 00000000         ;0-->1:FEIE=framing error IE for FE (disabled)
+  107 00000000         ;0-->0:PEIE=parity error IE for PF (disabled)
+
+
+
+ARM Macro Assembler    Page 4 
+
+
+  108 00000000 00000000 
+                       UART0_C3_NO_TXINV
+                               EQU              0x00
+  109 00000000         ;---------------------------------------------------------------
+  110 00000000         ;UART0_C4
+  111 00000000         ; 0--> 7:MAEN1=match address mode enable 1 (disabled)
+  112 00000000         ; 0--> 6:MAEN2=match address mode enable 2 (disabled)
+  113 00000000         ; 0--> 5:M10=10-bit mode select (not selected)
+  114 00000000         ;01111-->4-0:OSR=over sampling ratio (16)
+  115 00000000         ; = 1 + OSR for 3 <= OSR <= 31
+  116 00000000         ; = 16 for 0 <= OSR <= 2 (invalid values)
+  117 00000000 0000000F 
+                       UART0_C4_OSR_16
+                               EQU              0x0F
+  118 00000000 0000000F 
+                       UART0_C4_NO_MATCH_OSR_16
+                               EQU              UART0_C4_OSR_16
+  119 00000000         ;---------------------------------------------------------------
+  120 00000000         ;UART0_C5
+  121 00000000         ; 0--> 7:TDMAE=transmitter DMA enable (disabled)
+  122 00000000         ; 0--> 6:Reserved; read-only; always 0
+  123 00000000         ; 0--> 5:RDMAE=receiver full DMA enable (disabled)
+  124 00000000         ;000-->4-2:Reserved; read-only; always 0
+  125 00000000         ; 0--> 1:BOTHEDGE=both edge sampling (rising edge only)
+  126 00000000         ; 0--> 0:RESYNCDIS=resynchronization disable (enabled)
+  127 00000000 00000000 
+                       UART0_C5_NO_DMA_SSR_SYNC
+                               EQU              0x00
+  128 00000000         ;---------------------------------------------------------------
+  129 00000000         ;UART0_S1
+  130 00000000         ;0-->7:TDRE=transmit data register empty flag; read-only
+  131 00000000         ;0-->6:TC=transmission complete flag; read-only
+  132 00000000         ;0-->5:RDRF=receive data register full flag; read-only
+  133 00000000         ;1-->4:IDLE=idle line flag; write 1 to clear (clear)
+  134 00000000         ;1-->3:OR=receiver overrun flag; write 1 to clear (clear)
+  135 00000000         ;1-->2:NF=noise flag; write 1 to clear (clear)
+  136 00000000         ;1-->1:FE=framing error flag; write 1 to clear (clear)
+  137 00000000         ;1-->0:PF=parity error flag; write 1 to clear (clear)
+  138 00000000 0000001F 
+                       UART0_S1_CLEAR_FLAGS
+                               EQU              0x1F
+  139 00000000         ;---------------------------------------------------------------
+
+
+
+ARM Macro Assembler    Page 5 
+
+
+  140 00000000         ;UART0_S2
+  141 00000000         ;1-->7:LBKDIF=LIN break detect interrupt flag (clear)
+  142 00000000         ; write 1 to clear
+  143 00000000         ;1-->6:RXEDGIF=RxD pin active edge interrupt flag (clear)
+  144 00000000         ; write 1 to clear
+  145 00000000         ;0-->5:(reserved); read-only; always 0
+  146 00000000         ;0-->4:RXINV=receive data inversion (disabled)
+  147 00000000         ;0-->3:RWUID=receive wake-up idle detect
+  148 00000000         ;0-->2:BRK13=break character generation length (10)
+  149 00000000         ;0-->1:LBKDE=LIN break detect enable (disabled)
+  150 00000000         ;0-->0:RAF=receiver active flag; read-only
+  151 00000000 000000C0 
+                       UART0_S2_NO_RXINV_BRK10_NO_LBKDETECT_CLEAR_FLAGS
+                               EQU              0xC0
+  152 00000000         ;--------------------------------------------------------------- 
+  153 00000000         ;---------------------------------------------------------------
+  154 00000000         ;****************************************************************
+  155 00000000         ;Program
+  156 00000000         ;Linker requires Reset_Handler
+  157 00000000                 AREA             MyCode,CODE,READONLY
+  158 00000000                 ENTRY
+  159 00000000                 EXPORT           Reset_Handler
+  160 00000000                 IMPORT           Startup
+  161 00000000         Reset_Handler
+  162 00000000         main
+  163 00000000         ;---------------------------------------------------------------
+  164 00000000         ;Mask interrupts
+  165 00000000 B672            CPSID            I
+  166 00000002         ;KL46 system startup with 48-MHz system clock
+  167 00000002 F7FF FFFE       BL               Startup
+  168 00000006         ;---------------------------------------------------------------
+  169 00000006         ;>>>>> begin main program code <<<<<
+  170 00000006 F000 F8E5       BL               Init_UART0_Polling
+  171 0000000A 48AD            LDR              R0,=InitialString
+  172 0000000C 49AD            LDR              R1,=StartingPoint
+  173 0000000E F000 F85F       BL               CopyString
+  174 00000012         MAIN
+  175 00000012 48AD            LDR              R0,=MainString ;MainString in R0 
+  176 00000014 F000 F93B       BL               PutStringSB ;Print MainString
+  177 00000018         INPUTLOOP                            ;Loop for reading input
+  178 00000018 F000 F91C       BL               GETCHAR     ;read input char put in R0
+  179 0000001C 0004            MOVS             R4,R0       ;Char goes to R4 for copy
+
+
+
+ARM Macro Assembler    Page 6 
+
+
+  180 0000001E 285E            CMP              R0,#94      ;If Char is lowercase
+  181 00000020 DC00            BGT              Skip
+  182 00000022 3020            ADDS             R0,R0,#32   ;Add decimal 32, turns it to lowercase
+  183 00000024         Skip
+  184 00000024 2867            CMP              R0,#103     ;If g
+  185 00000026 D012            BEQ              DOSTUFFg    ;
+  186 00000028 2868            CMP              R0,#104     ;If h
+  187 0000002A D046            BEQ              DOSTUFFh
+  188 0000002C 286D            CMP              R0,#109     ;If m
+  189 0000002E D01A            BEQ              DOSTUFFm
+  190 00000030 2870            CMP              R0,#112     ;If p
+  191 00000032 D027            BEQ              DOSTUFFp
+  192 00000034 2872            CMP              R0,#114     ;If r
+  193 00000036 D031            BEQ              DOSTUFFr
+  194 00000038 E000            B                NotValid
+  195 0000003A E7FE            B                .
+  196 0000003C         ;>>>>>   end main program code <<<<<
+  197 0000003C         ;---------------------------------------------------------------
+  198 0000003C         ;This subroutine gets gets called when an not valid character is entered
+  199 0000003C         ;in the terminal 
+  200 0000003C         ;Input parameters:
+  201 0000003C         ;   R0 = char
+  202 0000003C         ;Output parameters:
+  203 0000003C         ;   None
+  204 0000003C         ;Modified Registers
+  205 0000003C         ;   None
+  206 0000003C         NotValid
+  207 0000003C 0020            MOVS             R0,R4
+  208 0000003E F000 F901       BL               PUTCHAR     ;Echo character
+  209 00000042 48A2            LDR              R0,=InvalidString ;string for invalid command
+  210 00000044 F000 F923       BL               PutStringSB
+  211 00000048 F000 F932       BL               NEXTLINE    ;NextLine
+  212 0000004C E7E1            B                MAIN        ;Return to main
+  213 0000004E         
+  214 0000004E         
+  215 0000004E         ;This subroutine gets the operational string from the console when g
+  216 0000004E         ;is entered in the terminal
+  217 0000004E         ;Input parameters:
+  218 0000004E         ;   R0 = g
+  219 0000004E         ;Output parameters:
+  220 0000004E         ;   None
+  221 0000004E         ;Modified Registers
+
+
+
+ARM Macro Assembler    Page 7 
+
+
+  222 0000004E         ;   
+  223 0000004E         DOSTUFFg
+  224 0000004E 0020            MOVS             R0,R4
+  225 00000050 F000 F8F8       BL               PUTCHAR     ;Echo character
+  226 00000054 F000 F92C       BL               NEXTLINE
+  227 00000058 489A            LDR              R0,=StartingPoint ;Initialize starting point of string 
+  228 0000005A 499E            LDR              R1,=MAX_STRING ;Initialize Max string parameter
+  229 0000005C F000 F902       BL               GetStringSB ;GetString
+  230 00000060 F000 F926       BL               NEXTLINE    ;NextLine
+  231 00000064 E7D5            B                MAIN        ;Back to begining of main
+  232 00000066         ;This subroutine modefies the string when m is entered in the terminal
+  233 00000066         ;Input parameters:
+  234 00000066         ;   R0 = m
+  235 00000066         ;Output parameters:
+  236 00000066         ;   None
+  237 00000066         ;Modified Registers
+  238 00000066         ;   
+  239 00000066         DOSTUFFm
+  240 00000066 0020            MOVS             R0,R4       ;Move h to R0 for put char
+  241 00000068 F000 F8EC       BL               PUTCHAR     ;Echo
+  242 0000006C F000 F920       BL               NEXTLINE
+  243 00000070 4894            LDR              R0,=StartingPoint ;Load Statring point for dtring
+  244 00000072 F000 F839       BL               ModifyString
+  245 00000076 4893            LDR              R0,=StartingPoint ;Initialize starting point of string
+  246 00000078 4996            LDR              R1,=MAX_STRING ;Initialize Max string parameter
+  247 0000007A F000 F908       BL               PutStringSB ;GetString
+  248 0000007E F000 F917       BL               NEXTLINE    ;NextLine
+  249 00000082 E7C6            B                MAIN        ;Back to begining of main
+  250 00000084         ;This subroutine preforms PUTSTRINGSB when p is entered in the terminal
+  251 00000084         ;Input parameters:
+  252 00000084         ;   R1 = p
+  253 00000084         ;Output parameters:
+  254 00000084         ;   None
+  255 00000084         ;Modified Registers
+  256 00000084         ;   
+  257 00000084         DOSTUFFp
+  258 00000084 0020            MOVS             R0,R4
+  259 00000086 F000 F8DD       BL               PUTCHAR     ;Print Character to Console
+  260 0000008A F000 F911       BL               NEXTLINE    ;NextLine
+  261 0000008E 488D            LDR              R0,=StartingPoint ;Initialize starting point of string
+  262 00000090 4990            LDR              R1,=MAX_STRING ;Initialize Max string parameter
+  263 00000092 F000 F8FC       BL               PutStringSB ;GetString
+
+
+
+ARM Macro Assembler    Page 8 
+
+
+  264 00000096 F000 F90B       BL               NEXTLINE    ;NextLine
+  265 0000009A E7BA            B                MAIN        ;Back to begining of main
+  266 0000009C         ;This subroutine reverses the string when r is entered in the terminal
+  267 0000009C         ;Input parameters:
+  268 0000009C         ;   R0 = r
+  269 0000009C         ;Output parameters:
+  270 0000009C         ;   None
+  271 0000009C         ;Modified Registers
+  272 0000009C         ;   
+  273 0000009C         DOSTUFFr
+  274 0000009C 0020            MOVS             R0,R4       ;Move h to R0 for put char
+  275 0000009E F000 F8D1       BL               PUTCHAR     ;Echo
+  276 000000A2 F000 F905       BL               NEXTLINE
+  277 000000A6 4887            LDR              R0,=StartingPoint ;Load Statring point for dtring
+  278 000000A8 F000 F87F       BL               ReverseString
+  279 000000AC 4885            LDR              R0,=StartingPoint ;Initialize starting point of string
+  280 000000AE 4989            LDR              R1,=MAX_STRING ;Initialize Max string parameter
+  281 000000B0 F000 F8ED       BL               PutStringSB ;GetString
+  282 000000B4 F000 F8FC       BL               NEXTLINE    ;NextLine
+  283 000000B8 E7AB            B                MAIN        ;Back to begining of main
+  284 000000BA         ;This subroutine displays the help menu when e is entered in the terminal
+  285 000000BA         ;Input parameters:
+  286 000000BA         ;   R0 = h
+  287 000000BA         ;Output parameters:
+  288 000000BA         ;   None
+  289 000000BA         ;Modified Registers
+  290 000000BA         ;   
+  291 000000BA         DOSTUFFh
+  292 000000BA 0020            MOVS             R0,R4
+  293 000000BC F000 F8C2       BL               PUTCHAR     ;Echo
+  294 000000C0 F000 F8F6       BL               NEXTLINE
+  295 000000C4 4882            LDR              R0,=HelpString ;help string to print
+  296 000000C6 F000 F8E2       BL               PutStringSB
+  297 000000CA F000 F8F1       BL               NEXTLINE
+  298 000000CE E7A0            B                MAIN
+  299 000000D0         ;This subroutine creates a null terminated string in memory starting at
+  300 000000D0         ;the address in R1 by copying the character from a null terminated source
+  301 000000D0         ;string starting at the address in R0
+  302 000000D0         ;Input Parameters
+  303 000000D0         ; R0 starting address of source string
+  304 000000D0         ; R1 starting address of null terminated string to copy into
+  305 000000D0         ;Output
+
+
+
+ARM Macro Assembler    Page 9 
+
+
+  306 000000D0         ; None
+  307 000000D0         ;Modefied Registers
+  308 000000D0         ; PSR
+  309 000000D0         CopyString
+  310 000000D0 B5FF            PUSH             {R0-R7,LR}
+  311 000000D2 2200            MOVS             R2,#0       ;Intialize counter/offset
+  312 000000D4 2400            MOVS             R4,#0x00    ;store null
+  313 000000D6         CSCond
+  314 000000D6 5C83            LDRB             R3,[R0,R2]  ;get char from string
+  315 000000D8 42A3            CMP              R3,R4       ;compare to null
+  316 000000DA D002            BEQ              CSEnd
+  317 000000DC         CSLoop
+  318 000000DC 548B            STRB             R3,[R1,R2]  ;store char in new string
+  319 000000DE 1C52            ADDS             R2,R2,#1    ;Increment counter/offset
+  320 000000E0 E7F9            B                CSCond
+  321 000000E2         CSEnd
+  322 000000E2 548C            STRB             R4,[R1,R2]  ;Store null at the end
+  323 000000E4 BDFF            POP              {R0-R7,PC}
+  324 000000E6 4770            BX               LR
+  325 000000E8         
+  326 000000E8         ;This subroutine modefies the null-terminated string in memory staring at the
+  327 000000E8         ;address in R0 to replace all space characters as underscores, all upper-case 
+  328 000000E8         ;characters with their lower case equivalents, and every number with a pound sign 
+  329 000000E8         ;Input Parameters
+  330 000000E8         ; R0 starting address in memory of nulll terminated string
+  331 000000E8         ;Output Paramters
+  332 000000E8         ; None
+  333 000000E8         ;Modefied Registers
+  334 000000E8         ; PSR
+  335 000000E8         ModifyString
+  336 000000E8 B5FF            PUSH             {R0-R7,LR}
+  337 000000EA 7801            LDRB             R1,[R0,#0]  ;Get character at begining of string, store in R1
+  338 000000EC         MSCond
+  339 000000EC 7801            LDRB             R1,[R0,#0]  ;Get character at begining of string, store in R1
+  340 000000EE 2300            MOVS             R3,#0x00    ;Store null in R3
+  341 000000F0 4299            CMP              R1,R3       ;Compare char to null
+  342 000000F2 D058            BEQ              MSEnd       ;End if the end of string is reached
+  343 000000F4 2920            CMP              R1,#32      ;Compare char to space
+  344 000000F6 D04A            BEQ              CharIsSpace
+  345 000000F8 2941            CMP              R1,#65      ;If 'A'
+  346 000000FA D04C            BEQ              CharIsUppercase
+  347 000000FC 2942            CMP              R1,#66
+
+
+
+ARM Macro Assembler    Page 10 
+
+
+  348 000000FE D04A            BEQ              CharIsUppercase
+  349 00000100 2943            CMP              R1,#67
+  350 00000102 D048            BEQ              CharIsUppercase
+  351 00000104 2944            CMP              R1,#68
+  352 00000106 D046            BEQ              CharIsUppercase
+  353 00000108 2945            CMP              R1,#69
+  354 0000010A D044            BEQ              CharIsUppercase
+  355 0000010C 2946            CMP              R1,#70
+  356 0000010E D042            BEQ              CharIsUppercase
+  357 00000110 2947            CMP              R1,#71
+  358 00000112 D040            BEQ              CharIsUppercase
+  359 00000114 2948            CMP              R1,#72
+  360 00000116 D03E            BEQ              CharIsUppercase
+  361 00000118 2949            CMP              R1,#73
+  362 0000011A D03C            BEQ              CharIsUppercase
+  363 0000011C 294A            CMP              R1,#74
+  364 0000011E D03A            BEQ              CharIsUppercase
+  365 00000120 294B            CMP              R1,#75
+  366 00000122 D038            BEQ              CharIsUppercase
+  367 00000124 294C            CMP              R1,#76
+  368 00000126 D036            BEQ              CharIsUppercase
+  369 00000128 294D            CMP              R1,#77
+  370 0000012A D034            BEQ              CharIsUppercase
+  371 0000012C 294E            CMP              R1,#78
+  372 0000012E D032            BEQ              CharIsUppercase
+  373 00000130 294F            CMP              R1,#79
+  374 00000132 D030            BEQ              CharIsUppercase
+  375 00000134 2950            CMP              R1,#80
+  376 00000136 D02E            BEQ              CharIsUppercase
+  377 00000138 2951            CMP              R1,#81
+  378 0000013A D02C            BEQ              CharIsUppercase
+  379 0000013C 2952            CMP              R1,#82
+  380 0000013E D02A            BEQ              CharIsUppercase
+  381 00000140 2953            CMP              R1,#83
+  382 00000142 D028            BEQ              CharIsUppercase
+  383 00000144 2954            CMP              R1,#84
+  384 00000146 D026            BEQ              CharIsUppercase
+  385 00000148 2955            CMP              R1,#85
+  386 0000014A D024            BEQ              CharIsUppercase
+  387 0000014C 2956            CMP              R1,#86
+  388 0000014E D022            BEQ              CharIsUppercase
+  389 00000150 2957            CMP              R1,#87
+
+
+
+ARM Macro Assembler    Page 11 
+
+
+  390 00000152 D020            BEQ              CharIsUppercase
+  391 00000154 2958            CMP              R1,#88
+  392 00000156 D01E            BEQ              CharIsUppercase
+  393 00000158 2959            CMP              R1,#89
+  394 0000015A D01C            BEQ              CharIsUppercase
+  395 0000015C 295A            CMP              R1,#90
+  396 0000015E D01A            BEQ              CharIsUppercase
+  397 00000160 2930            CMP              R1,#48      ;If 0
+  398 00000162 D01C            BEQ              CharIsNumber
+  399 00000164 2931            CMP              R1,#49
+  400 00000166 D01A            BEQ              CharIsNumber
+  401 00000168 2932            CMP              R1,#50
+  402 0000016A D018            BEQ              CharIsNumber
+  403 0000016C 2933            CMP              R1,#51
+  404 0000016E D016            BEQ              CharIsNumber
+  405 00000170 2934            CMP              R1,#52
+  406 00000172 D014            BEQ              CharIsNumber
+  407 00000174 2935            CMP              R1,#53
+  408 00000176 D012            BEQ              CharIsNumber
+  409 00000178 2936            CMP              R1,#54
+  410 0000017A D010            BEQ              CharIsNumber
+  411 0000017C 2937            CMP              R1,#55
+  412 0000017E D00E            BEQ              CharIsNumber
+  413 00000180 2938            CMP              R1,#56
+  414 00000182 D00C            BEQ              CharIsNumber
+  415 00000184 2939            CMP              R1,#57
+  416 00000186 D00A            BEQ              CharIsNumber
+  417 00000188 7001            STRB             R1,[R0,#0]  ;If none of these then store char at pointer
+  418 0000018A 1C40            ADDS             R0,R0,#1    ;Increment pointer
+  419 0000018C E7AE            B                MSCond
+  420 0000018E         
+  421 0000018E         CharIsSpace
+  422 0000018E 215F            MOVS             R1,#0x5F    ;Move underscore into R1
+  423 00000190 7001            STRB             R1,[R0,#0]  ;Store underscore at pointer 
+  424 00000192 1C40            ADDS             R0,R0,#1    ;Increment pointer
+  425 00000194 E7AA            B                MSCond
+  426 00000196         CharIsUppercase
+  427 00000196 3120            ADDS             R1,R1,#32   ;Turn to lower case
+  428 00000198 7001            STRB             R1,[R0,#0]  ;Store lower case char at pointer 
+  429 0000019A 1C40            ADDS             R0,R0,#1    ;Increment pointer
+  430 0000019C E7A6            B                MSCond
+  431 0000019E         CharIsNumber
+
+
+
+ARM Macro Assembler    Page 12 
+
+
+  432 0000019E 2123            MOVS             R1,#0x23    ;Move pound sign into R1
+  433 000001A0 7001            STRB             R1,[R0,#0]  ;Store underscore at pointer 
+  434 000001A2 1C40            ADDS             R0,R0,#1    ;Increment pointer
+  435 000001A4 E7A2            B                MSCond
+  436 000001A6         MSEnd
+  437 000001A6 BDFF            POP              {R0-R7,PC}
+  438 000001A8 4770            BX               LR
+  439 000001AA         ;This subrouting reverses the characters of a null-terminated string in memory
+  440 000001AA         ;starting at the address in R0
+  441 000001AA         ;Input parameters
+  442 000001AA         ; R0 starting address in memory of null terrminated string
+  443 000001AA         ;Output Parameters
+  444 000001AA         ; None
+  445 000001AA         ;Modefied Registers
+  446 000001AA         ; None
+  447 000001AA         ReverseString
+  448 000001AA B5FF            PUSH             {R0-R7,LR}
+  449 000001AC 2200            MOVS             R2,#0       ;intialize string length counter (down-counter)
+  450 000001AE 2300            MOVS             R3,#0x00    ;Store null in R3
+  451 000001B0 2400            MOVS             R4,#0       ;initialize up-counter
+  452 000001B2         RSFindStringLength
+  453 000001B2 5C81            LDRB             R1,[R0,R2]  ;Get character at begining of string, store in R1
+  454 000001B4 4299            CMP              R1,R3       ;Compare to null
+  455 000001B6 D001            BEQ              RSLoopCond
+  456 000001B8 1C52            ADDS             R2,R2,#1    ;Increment counter since we have not reached end of string
+  457 000001BA E7FA            B                RSFindStringLength
+  458 000001BC         RSLoopCond
+  459 000001BC 42A2            CMP              R2,R4       ;Compare counters
+  460 000001BE D907            BLS              RSEnd       ;When equal(string is odd length) or down counter is less th
+                                                            an up counter(string is even length)
+  461 000001C0 1E52            SUBS             R2,R2,#1    ;One less than end
+  462 000001C2 E7FF            B                RSLoop
+  463 000001C4         RSLoop
+  464 000001C4 5D06            LDRB             R6,[R0,R4]  ;Get character at begining, store in R5
+  465 000001C6 5C85            LDRB             R5,[R0,R2]  ;Get character at end, store in R5
+  466 000001C8 5486            STRB             R6,[R0,R2]  ;Store char from begining at end
+  467 000001CA 5505            STRB             R5,[R0,R4]  ;Store char from end at begining
+  468 000001CC 1C64            ADDS             R4,R4,#1    ;One more than begining
+  469 000001CE E7F5            B                RSLoopCond
+  470 000001D0         RSEnd
+  471 000001D0 BDFF            POP              {R0-R7,PC}
+  472 000001D2 4770            BX               LR
+
+
+
+ARM Macro Assembler    Page 13 
+
+
+  473 000001D4         ;The follwing subroutine intiializes the board by initializing 
+  474 000001D4         ;The follwing subroutine intiializes the board by initializing 
+  475 000001D4         ;the clock, the pins, and the USB connection.
+  476 000001D4         ;Input parameters:
+  477 000001D4         ;   None, Registers R0-R3 are pushed to begin as to not disturb them
+  478 000001D4         ;Output parameters:
+  479 000001D4         ;   None, Registers R0-R3 are popped to end as to return their original values
+  480 000001D4         ;Modified Registers
+  481 000001D4         ;   None, Registers R0-R3 are modified but their origianl values are pushed to a 
+  482 000001D4         ;    stack and popped following the subroutines execution.
+  483 000001D4         Init_UART0_Polling
+  484 000001D4 B40F            PUSH             {R0,R1,R2,R3}
+  485 000001D6         ;Select MCGPLLCLK / 2 as UART0 clock source
+  486 000001D6 4846            LDR              R0,=SIM_SOPT2
+  487 000001D8 4946            LDR              R1,=SIM_SOPT2_UART0SRC_MASK
+  488 000001DA 6802            LDR              R2,[R0,#0]
+  489 000001DC 438A            BICS             R2,R2,R1
+  490 000001DE 4946            LDR              R1,=SIM_SOPT2_UART0_MCGPLLCLK_DIV2
+  491 000001E0 430A            ORRS             R2,R2,R1
+  492 000001E2 6002            STR              R2,[R0,#0]
+  493 000001E4         ;Enable external connection for UART0
+  494 000001E4 4845            LDR              R0,=SIM_SOPT5
+  495 000001E6 4946            LDR              R1,= SIM_SOPT5_UART0_EXTERN_MASK_CLEAR
+  496 000001E8 6802            LDR              R2,[R0,#0]
+  497 000001EA 438A            BICS             R2,R2,R1
+  498 000001EC 6002            STR              R2,[R0,#0]
+  499 000001EE         ;Enable clock for UART0 module 
+  500 000001EE 4845            LDR              R0,=SIM_SCGC4
+  501 000001F0 4945            LDR              R1,= SIM_SCGC4_UART0_MASK
+  502 000001F2 6802            LDR              R2,[R0,#0]
+  503 000001F4 430A            ORRS             R2,R2,R1
+  504 000001F6 6002            STR              R2,[R0,#0]
+  505 000001F8         ;Enable clock for Port A module
+  506 000001F8 4844            LDR              R0,=SIM_SCGC5
+  507 000001FA 4945            LDR              R1,= SIM_SCGC5_PORTA_MASK
+  508 000001FC 6802            LDR              R2,[R0,#0]
+  509 000001FE 430A            ORRS             R2,R2,R1
+  510 00000200 6002            STR              R2,[R0,#0]
+  511 00000202         ;Connect PORT A Pin 1 (PTA1) to UART0 Rx (J1 Pin 02)
+  512 00000202 4844            LDR              R0,=PORTA_PCR1
+  513 00000204 4944            LDR              R1,=PORT_PCR_SET_PTA1_UART0_RX
+  514 00000206 6001            STR              R1,[R0,#0]
+
+
+
+ARM Macro Assembler    Page 14 
+
+
+  515 00000208         ;Connect PORT A Pin 2 (PTA2) to UART0 Tx (J1 Pin 04)
+  516 00000208 4844            LDR              R0,=PORTA_PCR2
+  517 0000020A 4943            LDR              R1,=PORT_PCR_SET_PTA2_UART0_TX
+  518 0000020C 6001            STR              R1,[R0,#0]
+  519 0000020E         ;Disable UART0 receiver and transmitter
+  520 0000020E 4844            LDR              R0,=UART0_BASE
+  521 00000210 210C            MOVS             R1,#UART0_C2_T_R
+  522 00000212 78C2            LDRB             R2,[R0,#UART0_C2_OFFSET]
+  523 00000214 438A            BICS             R2,R2,R1
+  524 00000216 70C2            STRB             R2,[R0,#UART0_C2_OFFSET]
+  525 00000218         ;Set UART0 for 9600 baud, 8N1 protocol
+  526 00000218 2101            MOVS             R1,#UART0_BDH_9600
+  527 0000021A 7001            STRB             R1,[R0,#UART0_BDH_OFFSET]
+  528 0000021C 2138            MOVS             R1,#UART0_BDL_9600
+  529 0000021E 7041            STRB             R1,[R0,#UART0_BDL_OFFSET]
+  530 00000220 2100            MOVS             R1,#UART0_C1_8N1
+  531 00000222 7081            STRB             R1,[R0,#UART0_C1_OFFSET]
+  532 00000224 2100            MOVS             R1,#UART0_C3_NO_TXINV
+  533 00000226 7181            STRB             R1,[R0,#UART0_C3_OFFSET]
+  534 00000228 210F            MOVS             R1,#UART0_C4_NO_MATCH_OSR_16
+  535 0000022A 7281            STRB             R1,[R0,#UART0_C4_OFFSET]
+  536 0000022C 2100            MOVS             R1,#UART0_C5_NO_DMA_SSR_SYNC
+  537 0000022E 72C1            STRB             R1,[R0,#UART0_C5_OFFSET]
+  538 00000230 211F            MOVS             R1,#UART0_S1_CLEAR_FLAGS
+  539 00000232 7101            STRB             R1,[R0,#UART0_S1_OFFSET]
+  540 00000234 21C0            MOVS             R1, #UART0_S2_NO_RXINV_BRK10_NO_LBKDETECT_CLEAR_FLAGS
+  541 00000236 7141            STRB             R1,[R0,#UART0_S2_OFFSET]
+  542 00000238         ;Enable UART0 receiver and transmitter
+  543 00000238 210C            MOVS             R1,#UART0_C2_T_R
+  544 0000023A 70C1            STRB             R1,[R0,#UART0_C2_OFFSET]
+  545 0000023C         ;Poll TDRE until UART0 ready to transmit
+  546 0000023C 4938            LDR              R1,=UART0_BASE
+  547 0000023E 2280            MOVS             R2,#UART0_S1_TDRE_MASK
+  548 00000240 BC0F            POP              {R0,R1,R2,R3}
+  549 00000242 4770            BX               LR
+  550 00000244         
+  551 00000244         ;The follwing subroutine recieves a character from the console
+  552 00000244         ;
+  553 00000244         ;Input parameters:
+  554 00000244         ;   None, Registers R1-R3 are pushed to begin as to not disturb them 
+  555 00000244         ;Output parameters:
+  556 00000244         ;   R1 contains the address of UART0_BASE
+
+
+
+ARM Macro Assembler    Page 15 
+
+
+  557 00000244         ;   R2 contains the immediate of UART0_S1_TDRE_MASK
+  558 00000244         ;Modified Registers
+  559 00000244         ;   R1 contains the address of UART0_BASE
+  560 00000244         ;   R2 contains the immediate of UART0_S1_TDRE_MASK  
+  561 00000244         PUTCHAR
+  562 00000244         ;Poll REDRF until UART0 ready to recieve
+  563 00000244 B50E            PUSH             {R1,R2,R3,LR}
+  564 00000246 4936            LDR              R1,=UART0_BASE
+  565 00000248 2280            MOVS             R2, #UART0_S1_TDRE_MASK
+  566 0000024A         
+  567 0000024A         ;The follwing subroutine works in conjunction with GetChar
+  568 0000024A         ;It stores the character in register R0
+  569 0000024A         ;Input parameters:
+  570 0000024A         ;   R1 contains the address of the char
+  571 0000024A         ;Output parameters:
+  572 0000024A         ;   R0 conatins the byte from the console
+  573 0000024A         ;Modified Registers
+  574 0000024A         ;   R3 is modefied but returns its original value 
+  575 0000024A         ;   R0 conatins the byte from the console
+  576 0000024A         ;       
+  577 0000024A         POLLTX
+  578 0000024A 790B            LDRB             R3,[R1, #UART0_S1_OFFSET]
+  579 0000024C 4013            ANDS             R3,R3,R2
+  580 0000024E D0FC            BEQ              POLLTX
+  581 00000250         ;Recieve character and store in R0
+  582 00000250 71C8            STRB             R0,[R1,#UART0_D_OFFSET]
+  583 00000252 BD0E            POP              {R1,R2,R3,PC}
+  584 00000254         
+  585 00000254         
+  586 00000254         ;The follwing subroutine gets the address of the char that was modefied.
+  587 00000254         ;Its value is stored in R2
+  588 00000254         ;Input parameters:
+  589 00000254         ;   None, Registers R1-R3 are pushed to begin as to not disturb them 
+  590 00000254         ;Output parameters:
+  591 00000254         ;   R1 conatins the adress of UART0_BASE
+  592 00000254         ;   R2 contains the adress of the deciphered char
+  593 00000254         ;Modified Registers
+  594 00000254         ;   R1 conatins the adress of UART0_BASE
+  595 00000254         ;   R2 contains the adress of the deciphered char
+  596 00000254         ;         
+  597 00000254         GETCHAR
+  598 00000254         ;Poll TDRE until UART0 ready to transmit
+
+
+
+ARM Macro Assembler    Page 16 
+
+
+  599 00000254 B50E            PUSH             {R1,R2,R3,LR}
+  600 00000256 4932            LDR              R1,=UART0_BASE
+  601 00000258 2220            MOVS             R2,#UART0_S1_RDRF_MASK
+  602 0000025A         
+  603 0000025A         ;The follwing subroutine works in conjunction with Get Char to 
+  604 0000025A         ;store the deciphered char in R0 and display on the console
+  605 0000025A         ;Input parameters:
+  606 0000025A         ;   ;R1 contains the address of the char 
+  607 0000025A         ;Output parameters:
+  608 0000025A         ;   R0 contains the deciphered char
+  609 0000025A         ;Modified Registers
+  610 0000025A         ;   R3 conatins the adress of the char, offset by a constant value but is 
+  611 0000025A         ;       original value is popped at the end
+  612 0000025A         ;   R0 conatins the deciphered char 
+  613 0000025A         ;                 
+  614 0000025A         POLLRX
+  615 0000025A 790B            LDRB             R3,[R1,#UART0_S1_OFFSET]
+  616 0000025C 4013            ANDS             R3,R3,R2
+  617 0000025E D0FC            BEQ              POLLRX
+  618 00000260         ;Recieve character and store in R0
+  619 00000260 79C8            LDRB             R0,[R1,#UART0_D_OFFSET]
+  620 00000262 BD0E            POP              {R1,R2,R3,PC}
+  621 00000264         
+  622 00000264         ;The follwing subroutine reads a string of chars from the keyboard
+  623 00000264         ;and stores them in a string dtarting from R0. For each character 
+  624 00000264         ;up to R1-1 it echoes the character and when the carage character (13-10 0D-16)
+  625 00000264         ;is not recieved it null terminates the string. it then moves
+  626 00000264         ;the cursor to the begining of the next line
+  627 00000264         ;Input parameters:
+  628 00000264         ;   R1 one more than the oveflow buffer
+  629 00000264         ; R0 pointer to address of string 
+  630 00000264         ;Output parameters:
+  631 00000264         ;   None
+  632 00000264         ;Modified Registers
+  633 00000264         ;   None. The original contents of the registers are restored 
+  634 00000264         ;                 
+  635 00000264         GetStringSB
+  636 00000264 B40F            PUSH             {R0-R3}     ;Push registers as to not overwrite original values
+  637 00000266 1E49            SUBS             R1,R1,#1    ;Amount of elements we can check
+  638 00000268 0003            MOVS             R3,R0       ;Move address into R3
+  639 0000026A 2200            MOVS             R2,#0
+  640 0000026C         LoopCond
+
+
+
+ARM Macro Assembler    Page 17 
+
+
+  641 0000026C F7FF FFF2       BL               GETCHAR     ;GetChar, store Char in R0
+  642 00000270 280D            CMP              R0,#0x0D    ;Make Sure Carraige return has not been selected
+  643 00000272 D006            BEQ              ENDLOOP     ;End if Carraige Return has been recieved
+  644 00000274 428A            CMP              R2,R1       ;Make sure the Max_String value hasnt been reached
+  645 00000276 D0F9            BEQ              LoopCond    ;End if the Max_String value has been reached
+  646 00000278 F7FF FFE4       BL               PUTCHAR     ;Return  to console
+  647 0000027C 5498            STRB             R0,[R3,R2]  ;Store char in array  
+  648 0000027E 1C52            ADDS             R2,R2,#1    ;R2 increment
+  649 00000280 E7F4            B                LoopCond
+  650 00000282         ENDLOOP
+  651 00000282 2000            MOVS             R0,#00      ;Null terminate
+  652 00000284 5498            STRB             R0,[R3,R2]  ;Store Null terminate 
+  653 00000286 F000 F813       BL               NEXTLINE
+  654 0000028A BC0F            POP              {R0-R3}     ;Pop registers back off 
+  655 0000028C E6C1            B                MAIN
+  656 0000028E         
+  657 0000028E         ;Displays a null terminated string to the terminal screen from memory starting at R0 
+  658 0000028E         ;Preventing overun of the buffer capacity specified by R1
+  659 0000028E         ;Leaves cursor specified in R1
+  660 0000028E         
+  661 0000028E         PutStringSB
+  662 0000028E B51E            PUSH             {R1,R2,R3,R4,LR} ;Push registers as to not overwrite original values
+  663 00000290 2300            MOVS             R3,#0
+  664 00000292 0002            MOVS             R2,R0       ;Address of string to R2
+  665 00000294 2400            MOVS             R4,#0
+  666 00000296         LoopBegin
+  667 00000296 5CD0            LDRB             R0,[R2,R3]  ;Load Char to R0
+  668 00000298 428C            CMP              R4,R1       ;Compare Max_string to 0
+  669 0000029A D006            BEQ              EndThis     ;End if 0
+  670 0000029C 2800            CMP              R0,#00      ;Compare Char to Null
+  671 0000029E D004            BEQ              EndThis     ;End if null
+  672 000002A0 F7FF FFD0       BL               PUTCHAR     ;DisplayChar
+  673 000002A4 1C64            ADDS             R4,R4,#1    ;Decrement Max_String
+  674 000002A6 1C5B            ADDS             R3,R3,#1    ;Increment Memory
+  675 000002A8 E7F5            B                LoopBegin
+  676 000002AA         
+  677 000002AA         EndThis
+  678 000002AA F7FF FFCB       BL               PUTCHAR     ;DisplayCharacter
+  679 000002AE BD1E            POP              {R1,R2,R3,R4,PC} ;Restore original values
+  680 000002B0         
+  681 000002B0         ;This subroutine moves the terminal to the next line
+  682 000002B0         ;Input parameters:
+
+
+
+ARM Macro Assembler    Page 18 
+
+
+  683 000002B0         ;   None
+  684 000002B0         ;Output parameters:
+  685 000002B0         ;   None
+  686 000002B0         ;Modified Registers
+  687 000002B0         ;   R0 is modefied to the carriqage return and the line feed characters but its
+  688 000002B0         ;   original value is returned
+  689 000002B0         NEXTLINE
+  690 000002B0 B501            PUSH             {R0,LR}     ;Dont fuck with R0
+  691 000002B2 200D            MOVS             R0,#0x0D    ;Carriage Return
+  692 000002B4 F7FF FFC6       BL               PUTCHAR
+  693 000002B8 200A            MOVS             R0,#0x0A    ;Line feed
+  694 000002BA F7FF FFC3       BL               PUTCHAR
+  695 000002BE BD01            POP              {R0,PC}     ;Restore R0
+  696 000002C0         
+  697 000002C0         
+  698 000002C0         
+  699 000002C0         ;>>>>>   end subroutine code <<<<<
+  700 000002C0                 ALIGN
+  701 000002C0         ;****************************************************************
+  702 000002C0         ;Vector Table Mapped to Address 0 at Reset
+  703 000002C0         ;Linker requires __Vectors to be exported
+  704 000002C0 00000000 
+              00000000 
+              00000000 
+              00000000 
+              00000000 
+              0000004F 
+              00000000 
+              00000000 
+              00000000 
+              00000000 
+              00000000 
+              00000000 
+              40048004 
+              0C000000 
+              04010000 
+              40048010 
+              00010007 
+              40048034 
+              00000400 
+              40048038 
+              00000200 
+
+
+
+ARM Macro Assembler    Page 19 
+
+
+              40049004 
+              01000200 
+              40049008 
+              4006A000         AREA             RESET, DATA, READONLY
+  705 00000000                 EXPORT           __Vectors
+  706 00000000                 EXPORT           __Vectors_End
+  707 00000000                 EXPORT           __Vectors_Size
+  708 00000000                 IMPORT           __initial_sp
+  709 00000000                 IMPORT           Dummy_Handler
+  710 00000000         __Vectors
+  711 00000000         ;AR3 core vectors
+  712 00000000 00000000        DCD              __initial_sp ;00:end of stack
+  713 00000004 00000000        DCD              Reset_Handler ;01:reset vector
+  714 00000008 00000000        DCD              Dummy_Handler ;02:NMI
+  715 0000000C 00000000        DCD              Dummy_Handler ;03:hard fault
+  716 00000010 00000000        DCD              Dummy_Handler ;04:(reserved)
+  717 00000014 00000000        DCD              Dummy_Handler ;05:(reserved)
+  718 00000018 00000000        DCD              Dummy_Handler ;06:(reserved)
+  719 0000001C 00000000        DCD              Dummy_Handler ;07:(reserved)
+  720 00000020 00000000        DCD              Dummy_Handler ;08:(reserved)
+  721 00000024 00000000        DCD              Dummy_Handler ;09:(reserved)
+  722 00000028 00000000        DCD              Dummy_Handler ;10:(reserved)
+  723 0000002C 00000000        DCD              Dummy_Handler ;11:SVCall (supervisor call)
+  724 00000030 00000000        DCD              Dummy_Handler ;12:(reserved)
+  725 00000034 00000000        DCD              Dummy_Handler ;13:(reserved)
+  726 00000038 00000000        DCD              Dummy_Handler ;14:PendableSrvReq (pendable request 
+  727 0000003C         ;   for system service)
+  728 0000003C 00000000        DCD              Dummy_Handler ;15:SysTick (system tick timer)
+  729 00000040 00000000        DCD              Dummy_Handler ;16:DMA channel 0 xfer complete/error
+  730 00000044 00000000        DCD              Dummy_Handler ;17:DMA channel 1 xfer complete/error
+  731 00000048 00000000        DCD              Dummy_Handler ;18:DMA channel 2 xfer complete/error
+  732 0000004C 00000000        DCD              Dummy_Handler ;19:DMA channel 3 xfer complete/error
+  733 00000050 00000000        DCD              Dummy_Handler ;20:(reserved)
+  734 00000054 00000000        DCD              Dummy_Handler ;21:command complete; read collision
+  735 00000058 00000000        DCD              Dummy_Handler ;22:low-voltage detect;
+  736 0000005C         ;   low-voltage warning
+  737 0000005C 00000000        DCD              Dummy_Handler ;23:low leakage wakeup
+  738 00000060 00000000        DCD              Dummy_Handler ;24:I2C0
+  739 00000064 00000000        DCD              Dummy_Handler ;25:I2C1
+  740 00000068 00000000        DCD              Dummy_Handler ;26:SPI0 (all IRQ sources)
+  741 0000006C 00000000        DCD              Dummy_Handler ;27:SPI1 (all IRQ sources)
+  742 00000070 00000000        DCD              Dummy_Handler ;28:UART0 (status; error)
+
+
+
+ARM Macro Assembler    Page 20 
+
+
+  743 00000074 00000000        DCD              Dummy_Handler ;29:UART1 (status; error)
+  744 00000078 00000000        DCD              Dummy_Handler ;30:UART2 (status; error)
+  745 0000007C 00000000        DCD              Dummy_Handler ;31:ADC0
+  746 00000080 00000000        DCD              Dummy_Handler ;32:CMP0
+  747 00000084 00000000        DCD              Dummy_Handler ;33:TPM0
+  748 00000088 00000000        DCD              Dummy_Handler ;34:TPM1
+  749 0000008C 00000000        DCD              Dummy_Handler ;35:TPM2
+  750 00000090 00000000        DCD              Dummy_Handler ;36:RTC (alaR3)
+  751 00000094 00000000        DCD              Dummy_Handler ;37:RTC (seconds)
+  752 00000098 00000000        DCD              Dummy_Handler ;38:PIT (all IRQ sources)
+  753 0000009C 00000000        DCD              Dummy_Handler ;39:I2S0
+  754 000000A0 00000000        DCD              Dummy_Handler ;40:USB0
+  755 000000A4 00000000        DCD              Dummy_Handler ;41:DAC0
+  756 000000A8 00000000        DCD              Dummy_Handler ;42:TSI0
+  757 000000AC 00000000        DCD              Dummy_Handler ;43:MCG
+  758 000000B0 00000000        DCD              Dummy_Handler ;44:LPTMR0
+  759 000000B4 00000000        DCD              Dummy_Handler ;45:Segment LCD
+  760 000000B8 00000000        DCD              Dummy_Handler ;46:PORTA pin detect
+  761 000000BC 00000000        DCD              Dummy_Handler ;47:PORTC and PORTD pin detect
+  762 000000C0         __Vectors_End
+  763 000000C0 000000C0 
+                       __Vectors_Size
+                               EQU              __Vectors_End - __Vectors
+  764 000000C0                 ALIGN
+  765 000000C0         ;****************************************************************
+  766 000000C0         ;Constants
+  767 000000C0                 AREA             MyConst,DATA,READONLY
+  768 00000000         ;>>>>> begin constants here <<<<<
+  769 00000000 54 79 70 
+              65 20 61 
+              20 73 74 
+              72 69 6E 
+              67 20 63 
+              6F 6D 6D 
+              61 6E 64 
+              28 67 2C 
+              68 2C 6D 
+              2C 70 2C 
+              72 29 3E 
+              00       MainString
+                               DCB              "Type a string command(g,h,m,p,r)>", 0
+  770 00000022 67 20 28 
+
+
+
+ARM Macro Assembler    Page 21 
+
+
+              67 65 74 
+              29 2C 20 
+              68 20 28 
+              68 65 6C 
+              70 29 2C 
+              20 6D 20 
+              28 6D 6F 
+              64 69 66 
+              79 29 2C 
+              20 70 20 
+              28 70 72 
+              69 6E 74 
+              29 2C 20 
+              72 20 28 
+              72 65 76 
+              65 72 73 
+              65 29 00 HelpString
+                               DCB              "g (get), h (help), m (modify), p (print), r (reverse)", 0
+  771 00000058 3A 49 6E 
+              76 61 6C 
+              69 64 20 
+              63 6F 6D 
+              6D 61 6E 
+              64 00    InvalidString
+                               DCB              ":Invalid command", 0
+  772 00000069 49 6E 69 
+              74 69 61 
+              6C 20 53 
+              74 72 69 
+              6E 67 00 InitialString
+                               DCB              "Initial String", 0
+  773 00000078         ;>>>>>   end constants here <<<<<
+  774 00000078                 ALIGN
+  775 00000078         ;****************************************************************
+  776 00000078         ;VaR0ables
+  777 00000078                 AREA             MyData,DATA,READWRITE
+  778 00000000         ;>>>>> begin variables here <<<<<
+  779 00000000 00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+
+
+
+ARM Macro Assembler    Page 22 
+
+
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+
+
+
+ARM Macro Assembler    Page 23 
+
+
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+
+
+
+ARM Macro Assembler    Page 24 
+
+
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00 00 00 
+              00       StartingPoint
+                               SPACE            (4*MAX_STRING)
+  780 0000013C         
+  781 0000013C         
+  782 0000013C         ;>>>>>   end variables here <<<<<
+  783 0000013C                 ALIGN
+  784 0000013C                 END
+Command Line: --debug --length=49 --width=120 --diag_suppress=9931 --cpu=Cortex-M0+ --apcs=interwork --depend=.\objects\
+exercise08.d -o.\objects\exercise08.o -ID:\Assembly\Exercise08\RTE -IC:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Dev
+ice\Include -IC:\Keil_v5\ARM\CMSIS\Include --predefine="__EVAL SETA 1" --predefine="__UVISION_VERSION SETA 515" --predef
+ine="MKL46Z256xxx4 SETA 1" --list=.\listings\exercise08.lst Exercise08.s

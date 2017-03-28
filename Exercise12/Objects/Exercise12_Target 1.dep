@@ -1,0 +1,20 @@
+Dependencies for Project 'Exercise12', Target 'Target 1': (DO NOT MODIFY !)
+F (.\Exercise12_C.h)(0x57225A2C)()
+F (.\Exercise12_Assembly.s)(0x5727CFE8)(--cpu Cortex-M0+ -g --apcs=interwork -I D:\Assembly\Exerciser12\RTE-I C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include--pd "__UVISION_VERSION SETA 515" --pd "_RTE_ SETA 1" --pd "MKL46Z256xxx4 SETA 1"--list .\listings\exercise12_assembly.lst --length 49 --width 120 -o .\objects\exercise12_assembly.o --depend .\objects\exercise12_assembly.d)
+I (MKL46Z4.s)(0x572259A8)
+F (.\Exercise12_C.c)(0x5727CAD8)(-c --cpu Cortex-M0+ -g -O0 --apcs=interwork --split_sections-I D:\Assembly\Exerciser12\RTE-I C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-D__UVISION_VERSION="515" -D_RTE_ -DMKL46Z256xxx4-o .\objects\exercise12_c.o --omf_browse .\objects\exercise12_c.crf --depend .\objects\exercise12_c.d)
+I (C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include\MKL46Z4.h)(0x51C06778)
+I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include\core_cm0plus.h)(0x5509E4C4)
+I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x54C2FC88)
+I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include\core_cmInstr.h)(0x5509E4C4)
+I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include\core_cmFunc.h)(0x5509E4C4)
+I (C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include\system_MKL46Z4.h)(0x51C06778)
+I (Exercise12_C.h)(0x57225A2C)
+F (RTE\Device\MKL46Z256xxx4\startup_MKL46Z4.s)(0x5727CFE8)(--cpu Cortex-M0+ -g --apcs=interwork -I D:\Assembly\Exerciser12\RTE-I C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include--pd "__UVISION_VERSION SETA 515" --pd "_RTE_ SETA 1" --pd "MKL46Z256xxx4 SETA 1"--list .\listings\startup_mkl46z4.lst --length 49 --width 120 -o .\objects\startup_mkl46z4.o --depend .\objects\startup_mkl46z4.d)
+F (RTE\Device\MKL46Z256xxx4\system_MKL46Z4.c)(0x57225B0E)(-c --cpu Cortex-M0+ -g -O0 --apcs=interwork --split_sections-I D:\Assembly\Exerciser12\RTE-I C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-D__UVISION_VERSION="515" -D_RTE_ -DMKL46Z256xxx4-o .\objects\system_mkl46z4.o --omf_browse .\objects\system_mkl46z4.crf --depend .\objects\system_mkl46z4.d)
+I (C:\Keil_v5\ARM\ARMCC\include\stdint.h)(0x54C2FC88)
+I (C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include\MKL46Z4.h)(0x51C06778)
+I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include\core_cm0plus.h)(0x5509E4C4)
+I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include\core_cmInstr.h)(0x5509E4C4)
+I (C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include\core_cmFunc.h)(0x5509E4C4)
+I (C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include\system_MKL46Z4.h)(0x51C06778)

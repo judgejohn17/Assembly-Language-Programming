@@ -1,0 +1,9 @@
+--cpu Cortex-M0+
+".\objects\exercise12_assembly.o"
+".\objects\exercise12_c.o"
+".\objects\startup_mkl46z4.o"
+".\objects\system_mkl46z4.o"
+--strict --scatter ".\Objects\Exercise12.sct"
+--summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Listings\Exercise12.map" -o .\Objects\Exercise12.axf

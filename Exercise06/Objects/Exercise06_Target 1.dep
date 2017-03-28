@@ -1,0 +1,5 @@
+Dependencies for Project 'Exercise06', Target 'Target 1': (DO NOT MODIFY !)
+F (.\Exercise06.s)(0x56E0AAF6)(--cpu Cortex-M0+ -g --apcs=interwork -I D:\Assembly\Exercise06\RTE-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-I C:\Keil_v5\ARM\CMSIS\Include--pd "__UVISION_VERSION SETA 515" --pd "MKL43Z256xxx4 SETA 1"--list .\listings\exercise06.lst -o .\objects\exercise06.o --depend .\objects\exercise06.d)
+I (MKL46Z4.s)(0x56DF1DF6)
+F (.\Start.s)(0x56DF7AC0)(--cpu Cortex-M0+ -g --apcs=interwork -I D:\Assembly\Exercise06\RTE-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-I C:\Keil_v5\ARM\CMSIS\Include--pd "__UVISION_VERSION SETA 515" --pd "MKL43Z256xxx4 SETA 1"--list .\listings\start.lst -o .\objects\start.o --depend .\objects\start.d)
+I (MKL46Z4.s)(0x56DF1DF6)

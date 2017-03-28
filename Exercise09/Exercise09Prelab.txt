@@ -1,0 +1,208 @@
+﻿;John Judge
+;Alessandro Sarra
+;Assembly Language Programming
+;4/7/16
+
+;Send a character out of UART0 using interrupts
+;Inputs
+;	R0 - Character to enqueue to TxQueue
+;Return - N/A
+
+PutChar
+			PUSH {R0, R1, LR}
+			
+REPEAT_ENQ
+			
+			;Load input params to initalize queue structure
+			LDR R1, =TxQueueRecord
+			;Mask all other interrupts
+			CPSID I
+			;Critical section -> enqueue character
+			;Enqueue character that's already in R0
+			BL	EnQueue
+			;Enable interrupts
+			CPSIE I
+			BCS REPEAT_ENQ
+			;Enable UART0 Transmitter, reciever, and rx interrupt
+			LDR R0, =UART0_BASE
+		    	MOVS R1,#UART0_C2_TI_RI
+           		STRB R1,[R0,#UART0_C2_OFFSET]
+			;Pop original register values off the stack
+			POP {R0, R1, PC}
+
+     
+;Receive a character from UART0 using interrupts
+;Inputs - N/A
+;Return
+; R0 - Character dequeued from RxQueue
+GetChar
+	PUSH {R1, R2, LR} ; Push varibles on the stack to avoid loss
+	LDR R1, =RxQueueRecord
+
+REPEAT_DEQ
+	;Mask all interrupts
+	CPSID I	
+	;Critical code section - dequeue
+	BL DeQueue
+	;Re enable interrupts
+	CPSIE I
+	BCS REPEAT_DEQ
+	POP {R1, R2, PC}
+
+PutNumUB
+;PutNumUB: Print the least significant unsigned 
+;byte value from R0 to the screen. 
+
+;Inputs:
+	;R0 = value to print to the terminal screen in UB form
+;Outputs
+	;None
+			PUSH {R1, LR}
+			MOVS R1, #0xFF
+			;Mask off everything but the last byte
+			ANDS R0, R0, R1
+			BL PutNumU
+			POP {R1, PC}
+
+
+;UART0_ISR
+;Interrupt service routine for UART0 
+;Check status of interrupt that triggered the ISR
+;And react appropriately. If transmit interrupt enabled,
+;write to UART0 transmit data register. If rx enabled
+;enqueue to transmit queue from UART0 recieve data register
+UART0_ISR
+			
+			;Mask other interrupts
+			CPSID I
+			;Pust relevant registers on to the stack
+			PUSH {LR, R0-R3}
+			LDR R0, =UART0_BASE
+			;If txinterrupt enabled (UART0_C2 Bit 7 is set)
+			LDRB R1,[R0,#UART0_C2_OFFSET]
+			MOVS R2, #0x80
+			ANDS R1, R1, R2
+			CMP R1, #0
+			BNE TX_ENABLED
+			;If no TxInterrupt, check for Rx
+			B CHECK_RX_INT
+			
+TX_ENABLED
+			
+			LDRB R1,[R0,#UART0_S1_OFFSET]
+			MOVS R2, #0x80
+			ANDS R1, R1, R2
+			CMP R1, #0
+			BEQ CHECK_RX_INT
+			;Dequeue character
+			;Load input params to initalize queue structure
+			LDR R1, =TxQueueRecord
+			MOVS R2, #Q_BUF_SZ
+			BL DeQueue
+			;Dequeue was unsuccessful
+			BCS DISABLE_TX
+			;Dequeue was successful
+			LDR R1, =UART0_BASE
+			;Transmit Character Stored in R0
+			STRB R0, [R1, #UART0_D_OFFSET]
+			B END_ISR
+			
+DISABLE_TX
+			;UART0 <- C2_T_RI
+			MOVS R1,#UART0_C2_T_RI
+            		STRB R1,[R0,#UART0_C2_OFFSET]
+			;Pop values and return
+			B END_ISR
+			
+CHECK_RX_INT
+			LDR R0, =UART0_BASE
+			;Check if an RxInterrupt exists
+			LDRB R1,[R0,#UART0_S1_OFFSET]
+			MOVS R2, #0x10
+			ANDS R1, R1, R2
+			CMP R1, #0
+			BEQ END_ISR
+			;Receive character and store in R0
+			LDR R0, =UART0_BASE
+			LDRB R3, [R0, #UART0_D_OFFSET]
+			;Enqueue character with character stored in R0
+			;Load input params to initalize queue structure
+			LDR R1, =RxQueueRecord
+			MOVS R0, R3
+			BL EnQueue
+			;No need to check return of EnQueue
+			;character will be lost if the queue is full!
+
+END_ISR
+			;pop relevant registers off the stack
+			;Unmask other interrupts
+			CPSIE I
+			;Return back to our business
+			POP {R0-R3, PC}
+
+
+;Initalize UART0 for Serial Driver	
+Init_UART0_IRQ
+
+			;Allocate R0-2 for Ri=k 
+			;Store prevoius values for restoration
+			PUSH {R0, R1, R2, LR}
+			;Initalize rxQueue
+			LDR R1, =RxQueueRecord
+			LDR R0, =RxQueue
+			MOVS R2, #Q_BUF_SZ
+			BL InitQueue
+			LDR R1, =TxQueueRecord
+			LDR R0, =TxQueue
+			MOVS R2, #Q_BUF_SZ
+			BL InitQueue
+		   ;Select MCGPLLCLK / 2 as UART0 clock source
+		    LDR R0,=SIM_SOPT2
+		    LDR R1,=SIM_SOPT2_UART0SRC_MASK
+		    LDR R2,[R0,#0]
+		    BICS R2,R2,R1
+		    LDR R1,=SIM_SOPT2_UART0_MCGPLLCLK_DIV2
+		    ORRS R2,R2,R1
+		     STR R2,[R0,#0]
+		    ;Enable external connection for UART0
+		     LDR R0,=SIM_SOPT5
+		     LDR R1,= SIM_SOPT5_UART0_EXTERN_MASK_CLEAR
+		     LDR R2,[R0,#0]
+		     BICS R2,R2,R1
+		     STR R2,[R0,#0]
+		    ;Enable clock for UART0 module
+		     LDR R0,=SIM_SCGC4
+		     LDR R1,= SIM_SCGC4_UART0_MASK
+		     LDR R2,[R0,#0]
+		     ORRS R2,R2,R1
+		     STR R2,[R0,#0]
+		    ;Enable clock for Port A module
+		     LDR R0,=SIM_SCGC5
+		     LDR R1,= SIM_SCGC5_PORTA_MASK
+		     LDR R2,[R0,#0]
+		     ORRS R2,R2,R1
+		     STR R2,[R0,#0]
+		    ;Connect PORT A Pin 1 (PTA1) to UART0 Rx (J1 Pin 02)
+		     LDR R0,=PORTA_PCR1
+		     LDR R1,=PORT_PCR_SET_PTA1_UART0_RX
+		     STR R1,[R0,#0]
+		    ;Connect PORT A Pin 2 (PTA2) to UART0 Tx (J1 Pin 04)
+		     LDR R0,=PORTA_PCR2
+		     LDR R1,=PORT_PCR_SET_PTA2_UART0_TX
+		     STR R1,[R0,#0] 
+		     ;Disable UART0 receiver and transmitter
+		     LDR R0,=UART0_BASE
+		     MOVS R1,#UART0_C2_T_R
+		     LDRB R2,[R0,#UART0_C2_OFFSET]
+		     BICS R2,R2,R1
+		     STRB R2,[R0,#UART0_C2_OFFSET]
+		     ;Init NVIC for UART0 Interrupts
+		     ;Set UART0 IRQ Priority
+		     LDR R0, =UART0_IPR 
+		     ;TODO: Do I need this?
+		     LDR R1, =NVIC_IPR_UART0_MASK
+		     LDR R2, =NVIC_IPR_UART0_PRI_3
+		     LDR R3, [R0, #0] 
+		     ;TODO: Do I need this?
+		     BICS R3, R3, R1 
+             	

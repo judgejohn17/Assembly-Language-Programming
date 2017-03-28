@@ -1,0 +1,7 @@
+--cpu Cortex-M0+
+".\objects\exercise08.o"
+".\objects\start.o"
+--strict --scatter ".\Objects\Exercise08.sct"
+--summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Listings\Exercise08.map" -o .\Objects\Exercise08.axf

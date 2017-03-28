@@ -1,0 +1,80 @@
+;Get String SB
+;Reads a sring from terminal keyboard to memory starting at R0
+;Adds null termination, preventing overun of the buffer capacity in R1
+;Accepts characters typed in the terminal kyboaard until the retun carage retun character is recieved
+;For each of up to R1-1 characters it echoes the character and stores the character at the next postion in string
+;When the carrage character is not recieved it null terminates the string, 
+;advances the sursor to the begining of the next line 
+;and returns 
+
+GetStringSB
+					Push{R0-R4}				;Push registers as to not overwrite original values
+					STR R0,[R0,#0]			;String starts at R0
+					R4,=0
+					SUBS R1,R1,#R1          ;Initialize count down (R-1 total elements )
+		LoopCond
+					CMP R1,R4 				;R1 is number of elements that can be added to string, R4 is 0
+					BLS	EndLoop			    ;If the number of elements parameter has reached 0, end loop
+					B  Loop
+		Loop      
+        			BL GETCHAR              ;Get Char from console input
+        			BL PUTCHAR              ;Return  to console
+        			STRB R0,R0,#0x0 		;Store char in array 
+        			B  LoopInc              ;Wait for input again
+        LoopInc		
+        			SUBS R1,R1,#R1 			;R1-- decrement
+        			ADDS R0,R0,#4			;Increment point at which to write
+        			B 	LoopCond
+        EndLoop		
+        			MOVS R2,#0x00			;Null terminate
+        			LDRB R0,R2,#4			;Store null terminate at end of string
+        			;Move cursor to begining of next line...
+        			Pop{R0-R4}				;Pop registers back off 
+        			BX	LR
+        			
+; Determines how many characters are in a a null terminated string
+;Memory of string starts in R0 and returns number of characters in R2
+;Prevents overrun of of buffer capacity specified in R1
+
+LengthStringSB
+					Push{R0-R4}				;Push registers as to not overwrite original values
+					LSLS R1,R1,#4			;Multiple number of chars by four 
+					ADDS R1,R1,R0 			;This results in the space at which the null thing is located
+					SUBS R1,R1,R0           ;Total Length of the
+					MOVS R0,#4				;Inititalize divisor for DIVU
+					BL DIVU					;Divide length of string by 4 to get total number of elements
+					Pop{R1-R4}				;Pop registers back off 
+					BX LR
+
+;Prints the text in decimal of unsigned word value R0 in terminal screen
+;Using DivU
+
+PutNumU
+					Push{R0-R4}				;Push registers as to not overwrite original values
+					MOVS R1,R0              ;Initialize dividend
+					MOVS R0,#R1             ;Initialize divisor
+					BL DivU    				;Divide to get integer value returned in R0
+					BL PutChar 				;Display on terminal
+					Pop{R0-R4}				;Restore original values
+					BX LR
+
+;Displays a null terminated string to the terminal screen from memory starting at R0 
+;Preventing overun of the buffer capacity specified by R1
+;Leaves cursor specified in R1
+
+PutStringSb
+					Push{R0-R4}				;Push registers as to not overwrite original values
+					LSLS R1,R1,#4			;get total length of memory address
+					ADDS R1,R1,R0  			;end point of string 
+		ForCond2
+					CMP R0,R1
+					BHS	Endloop2
+					B Loop2
+		Loop2
+					BL GETCHAR 				;Get character at R0 address
+					BL PUTCHAR              ;Display Char
+					ADDS R0,R0,#4			;Increment R0 to next char
+					B ForCond2
+		EndLoop
+					Pop{R0-R4}				;Restore original values
+					BX LR

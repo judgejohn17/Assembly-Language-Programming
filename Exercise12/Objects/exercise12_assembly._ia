@@ -1,0 +1,6 @@
+--cpu Cortex-M0+ -g --apcs=interwork 
+-I D:\Assembly\Exerciser12\RTE
+-I C:\Keil_v5\ARM\PACK\ARM\CMSIS\4.3.0\CMSIS\Include
+-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include
+--pd "__UVISION_VERSION SETA 515" --pd "_RTE_ SETA 1" --pd "MKL46Z256xxx4 SETA 1"
+--list .\listings\exercise12_assembly.lst --length 49 --width 120 -o .\objects\exercise12_assembly.o --depend .\objects\exercise12_assembly.d "Exercise12_Assembly.s"

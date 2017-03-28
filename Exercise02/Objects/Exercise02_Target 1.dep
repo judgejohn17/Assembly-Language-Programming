@@ -1,0 +1,2 @@
+Dependencies for Project 'Exercise02', Target 'Target 1': (DO NOT MODIFY !)
+F (.\Exercise02.s)(0x56B3B116)(--cpu Cortex-M0+ -g --apcs=interwork -I D:\Assembly\Exercise02\RTE-I C:\Keil_v5\ARM\PACK\Keil\Kinetis_KLxx_DFP\1.6.0\Device\Include-I C:\Keil_v5\ARM\CMSIS\Include--pd "__UVISION_VERSION SETA 515" --pd "MKL43Z256xxx4 SETA 1"--list .\listings\exercise02.lst --xref --length 49 --width 120 -o .\objects\exercise02.o --depend .\objects\exercise02.d)

@@ -1,0 +1,7 @@
+--cpu Cortex-M0+
+".\objects\exercise07fixed.o"
+".\objects\start.o"
+--strict --scatter ".\Objects\Exercise07Fixed.sct"
+--summary_stderr --info summarysizes --map --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list ".\Listings\Exercise07Fixed.map" -o .\Objects\Exercise07Fixed.axf
